@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>常昊旻の打爱心</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body {
+            background: linear-gradient(180deg, #0a0014, #1a0028);
+            font-family: -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            color: #fff;
+            overflow: hidden;
+            height: 100vh;
+            touch-action: none;
+            user-select: none;
+        }
+
+        /* ===== 开始界面 ===== */
+        #startScreen {
+            position: fixed; inset: 0;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            z-index: 100;
+        }
+        #startScreen.hide { display: none; }
+        .title {
+            font-size: 2.2rem;
+            background: linear-gradient(135deg, #ff6b9d, #ffd166);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 6px;
+        }
+        .subtitle { color: #c9a0dc; font-size: 0.95rem; margin-bottom: 36px; }
+        .start-btn {
+            background: linear-gradient(135deg, #ff6b9d, #ff3d7f);
+            border: none; color: #fff;
+            padding: 16px 60px; font-size: 1.2rem;
+            border-radius: 50px; cursor: pointer;
+            box-shadow: 0 4px 25px rgba(255,107,157,0.5);
+            animation: pulse 2s ease infinite;
+        }
+        @keyframes pulse {
+            0%,100% { box-shadow: 0 4px 25px rgba(255,107,157,0.5); }
+            50% { box-shadow: 0 4px 40px rgba(255,107,157,0.8); }
+        }
+        .how-to {
+            margin-top: 36px; color: #8a7099;
+            font-size: 0.85rem; text-align: center; line-height: 1.9;
+        }
+        .how-to span { color: #ff6b9d; }
+
+        /* ===== HUD ===== */
+        #hud {
+            position: fixed; top: 0; left: 0; right: 0;
+            display: none; justify-content: space-between;
+            align-items: flex-start; padding: 12px 16px;
+            z-index: 20; pointer-events: none;
+        }
+        #hud.show { display: flex; }
+        .hud-left, .hud-right { display: flex; flex-direction: column; gap: 3px; }
+        .hud-label { font-size: 0.65rem; color: #8a7099; }
+        .hud-value { font-size: 1.2rem; font-weight: bold; }
+        .hud-score .hud-value { color: #ffd166; }
+        .hud-combo .hud-value { color: #ff6b9d; }
+        .hud-level .hud-value { color: #a78bfa; }
+        .hud-lives .hud-value { color: #ff4444; font-size: 1rem; }
+        .hud-right { align-items: flex-end; }
+
+        /* ===== 倒计时条 ===== */
+        #timerBar {
+            position: fixed; top: 0; left: 0; right: 0;
+            height: 4px; z-index: 25; display: none;
+            background: rgba(255,255,255,0.05);
+        }
+        #timerBar.show { display: block; }
+        #timerFill {
+            height: 100%; width: 100%;
+            background: linear-gradient(90deg, #ff6b9d, #ffd166);
+            transition: width 0.3s linear;
+            border-radius: 0 2px 2px 0;
+        }
+
+        /* ===== 游戏网格 ===== */
+        #gameArea {
+            position: fixed; inset: 0;
+            display: none; z-index: 5;
+            padding: 70px 16px 20px;
+        }
+        #gameArea.show { display: flex; flex-direction: column; }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 14px;
+            flex: 1;
+            max-width: 400px;
+            width: 100%;
+            margin: 0 auto;
+            align-content: center;
+        }
+
+        /* ===== 洞 ===== */
+        .hole {
+            position: relative;
+            aspect-ratio: 1;
+            border-radius: 50%;
+            background: radial-gradient(ellipse at center, #0d0015 55%, #1a0028 100%);
+            box-shadow: inset 0 8px 20px rgba(0,0,0,0.6), 0 2px 8px rgba(0,0,0,0.3);
+            overflow: hidden;
+            cursor: pointer;
+        }
+        .hole::after {
+            content: '';
+            position: absolute;
+            bottom: 0; left: 5%; right: 5%;
+            height: 35%;
+            background: radial-gradient(ellipse at center bottom, #150020, transparent);
+            border-radius: 0 0 50% 50%;
+        }
+
+        /* ===== 冒出的物体 ===== */
+        .mole {
+            position: absolute;
+            left: 50%; bottom: -100%;
+            transform: translateX(-50%);
+            font-size: 2.8rem;
+            transition: bottom 0.15s ease-out;
+            filter: drop-shadow(0 4px 8px rgba(0,0,0,0.4));
+            pointer-events: none;
+            z-index: 2;
+        }
+        .mole.up { bottom: 15%; }
+        .mole.hit {
+            transition: none;
+            animation: hitPop 0.3s ease-out forwards;
+        }
+        @keyframes hitPop {
+            0% { transform: translateX(-50%) scale(1); opacity: 1; }
+            40% { transform: translateX(-50%) scale(1.5); opacity: 1; }
+            100% { transform: translateX(-50%) scale(0.2); opacity: 0; }
+        }
+        .mole.miss {
+            transition: bottom 0.25s ease-in;
+            bottom: -100%;
+        }
+
+        /* ===== 点击特效 ===== */
+        .tap-fx {
+            position: absolute;
+            pointer-events: none;
+            z-index: 20;
+            font-size: 1.3rem; font-weight: bold;
+            animation: tapFloat 0.7s ease-out forwards;
+        }
+        @keyframes tapFloat {
+            0% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+            100% { opacity: 0; transform: translate(-50%, -60px) scale(0.6); }
+        }
+        .tap-ring {
+            position: absolute;
+            width: 60px; height: 60px;
+            border-radius: 50%;
+            border: 3px solid #ff6b9d;
+            pointer-events: none; z-index: 15;
+            left: 50%; top: 50%;
+            transform: translate(-50%, -50%) scale(0.3);
+            opacity: 1;
+            animation: ringPop 0.4s ease-out forwards;
+        }
+        @keyframes ringPop {
+            0% { transform: translate(-50%, -50%) scale(0.3); opacity: 1; }
+            100% { transform: translate(-50%, -50%) scale(1.2); opacity: 0; }
+        }
+
+        /* ===== 连击闪字 ===== */
+        .combo-flash {
+            position: fixed; top: 40%; left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 2.5rem; font-weight: bold;
+            color: #ffd166; pointer-events: none;
+            z-index: 30; opacity: 0;
+            text-shadow: 0 0 20px rgba(255,209,102,0.8);
+            white-space: nowrap;
+        }
+        .combo-flash.show { animation: comboPop 0.7s ease forwards; }
+        @keyframes comboPop {
+            0% { opacity: 0; transform: translate(-50%,-50%) scale(0.5); }
+            30% { opacity: 1; transform: translate(-50%,-50%) scale(1.2); }
+            100% { opacity: 0; transform: translate(-50%,-55%) scale(1); }
+        }
+
+        /* ===== 暂停 ===== */
+        #pauseOverlay {
+            position: fixed; inset: 0;
+            background: rgba(10,0,20,0.85);
+            display: none; flex-direction: column;
+            align-items: center; justify-content: center;
+            z-index: 50;
+        }
+        #pauseOverlay.show { display: flex; }
+        #pauseOverlay h2 { font-size: 2rem; color: #ffa8c5; margin-bottom: 30px; }
+        .pause-btn {
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,107,157,0.3);
+            color: #ff6b9d; padding: 12px 40px;
+            font-size: 1.1rem; border-radius: 50px;
+            cursor: pointer; margin: 8px;
+        }
+
+        /* ===== 结束 ===== */
+        #endScreen {
+            position: fixed; inset: 0;
+            display: none; flex-direction: column;
+            align-items: center; justify-content: center;
+            z-index: 100;
+            background: rgba(10,0,20,0.92);
+        }
+        #endScreen.show { display: flex; }
+        #endScreen h1 { font-size: 2.5rem; margin-bottom: 10px; }
+        .final-score { font-size: 4rem; font-weight: bold; color: #ffd166; margin: 10px 0; }
+        .stats { color: #c9a0dc; font-size: 0.95rem; line-height: 2; text-align: center; margin: 20px 0; }
+        .stats span { color: #ff6b9d; font-weight: bold; }
+        .restart-btn {
+            background: linear-gradient(135deg, #ff6b9d, #ff3d7f);
+            border: none; color: #fff;
+            padding: 16px 60px; font-size: 1.2rem;
+            border-radius: 50px; cursor: pointer;
+            box-shadow: 0 4px 25px rgba(255,107,157,0.5);
+            margin-top: 10px;
+        }
+
+        /* ===== 暂停按钮 ===== */
+        #pauseBtn {
+            position: fixed; top: 12px; right: 12px;
+            z-index: 30;
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.15);
+            color: #aaa; width: 40px; height: 40px;
+            border-radius: 50%; font-size: 1.2rem;
+            cursor: pointer; display: none;
+            align-items: center; justify-content: center;
+        }
+        #pauseBtn.show { display: flex; }
+    </style>
+</head>
+<body>
+
+<div id="startScreen">
+    <div style="font-size:4rem;margin-bottom:16px;">🎯</div>
+    <div class="title">常昊旻の打爱心</div>
+    <div class="subtitle">眼疾手快，打出高分</div>
+    <button class="start-btn" onclick="startGame()">开始游戏</button>
+    <div class="how-to">
+        点击 <span>💗💕⭐</span> 得分<br>
+        <span>💣 炸弹</span> 会扣命，别点！<span>🍄 毒蘑菇</span> 扣分！<br>
+        连续命中触发 <span>连击加成</span><br>
+        物品会越来越快 👀
+    </div>
+</div>
+
+<div id="hud">
+    <div class="hud-left">
+        <div class="hud-score"><div class="hud-label">得分</div><div class="hud-value" id="scoreVal">0</div></div>
+        <div class="hud-combo"><div class="hud-label">连击</div><div class="hud-value" id="comboVal">0</div></div>
+    </div>
+    <div class="hud-right">
+        <div class="hud-level"><div class="hud-label">等级</div><div class="hud-value" id="levelVal">1</div></div>
+        <div class="hud-lives"><div class="hud-label">生命</div><div class="hud-value" id="livesVal">❤️❤️❤️</div></div>
+    </div>
+</div>
+
+<div id="timerBar"><div id="timerFill"></div></div>
+
+<div class="combo-flash" id="comboFlash"></div>
+
+<div id="gameArea">
+    <div class="grid" id="grid"></div>
+</div>
+
+<button id="pauseBtn" onclick="togglePause()">⏸</button>
+
+<div id="pauseOverlay">
+    <h2>暂停中</h2>
+    <button class="pause-btn" onclick="togglePause()">继续游戏</button>
+    <button class="pause-btn" onclick="quitGame()">退出游戏</button>
+</div>
+
+<div id="endScreen">
+    <h1 id="endTitle">游戏结束</h1>
+    <div class="final-score" id="finalScore">0</div>
+    <div class="stats" id="endStats"></div>
+    <button class="restart-btn" onclick="restartGame()">再来一次</button>
+    <button class="pause-btn" style="margin-top:12px;" onclick="quitGame()">返回首页</button>
+</div>
+
+<script>
+// ===== 状态 =====
+let gameRunning = false;
+let paused = false;
+let score = 0;
+let combo = 0;
+let maxCombo = 0;
+let lives = 3;
+let level = 1;
+let totalHit = 0;
+let totalMiss = 0;
+let totalBomb = 0;
+let totalPoison = 0;
+let gameTimer = 60; // 60秒一局
+let timerInterval = null;
+let spawnTimeout = null;
+
+// ===== 物品类型 =====
+const TYPES = [
+    { emoji: '💗', points: 10, type: 'good', weight: 30 },
+    { emoji: '💕', points: 15, type: 'good', weight: 20 },
+    { emoji: '💖', points: 20, type: 'good', weight: 12 },
+    { emoji: '✨', points: 25, type: 'good', weight: 10 },
+    { emoji: '🌸', points: 10, type: 'good', weight: 15 },
+    { emoji: '⭐', points: 40, type: 'star', weight: 5 },
+    { emoji: '💣', points: 0, type: 'bomb', weight: 20 },
+    { emoji: '🍄', points: -15, type: 'poison', weight: 10 },
+];
+
+// ===== 初始化网格 =====
+function initGrid() {
+    const grid = document.getElementById('grid');
+    grid.innerHTML = '';
+    for (let i = 0; i < 9; i++) {
+        const hole = document.createElement('div');
+        hole.className = 'hole';
+        hole.dataset.index = i;
+        hole.dataset.state = 'empty';
+        // 点击洞
+        hole.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            tapHole(i, hole, e.touches[0].clientX, e.touches[0].clientY);
+        }, { passive: false });
+        hole.addEventListener('click', (e) => {
+            tapHole(i, hole, e.clientX, e.clientY);
+        });
+        grid.appendChild(hole);
+    }
+}
+
+// ===== 点击洞 =====
+function tapHole(index, holeEl, x, y) {
+    if (!gameRunning || paused) return;
+    if (holeEl.dataset.state !== 'up') return;
+
+    const type = holeEl.dataset.type;
+    const points = parseInt(holeEl.dataset.points);
+    const mole = holeEl.querySelector('.mole');
+    if (!mole) return;
+
+    holeEl.dataset.state = 'hit';
+
+    // 撞击特效
+    mole.classList.remove('up');
+    mole.classList.add('hit');
+
+    // 圆环特效
+    const ring = document.createElement('div');
+    ring.className = 'tap-ring';
+    if (type === 'bomb') ring.style.borderColor = '#ff4444';
+    else if (type === 'poison') ring.style.borderColor = '#8b5cf6';
+    else ring.style.borderColor = '#ff6b9d';
+    holeEl.appendChild(ring);
+    setTimeout(() => ring.remove(), 400);
+
+    // 分数弹出
+    const fx = document.createElement('div');
+    fx.className = 'tap-fx';
+    fx.style.left = '50%';
+    fx.style.top = '20%';
+
+    if (type === 'bomb') {
+        // 炸弹
+        lives--;
+        combo = 0;
+        totalBomb++;
+        fx.textContent = '-1 ❤️';
+        fx.style.color = '#ff4444';
+        showCombo('💥');
+        shakeScreen();
+    } else if (type === 'poison') {
+        // 毒蘑菇
+        score += points;
+        combo = 0;
+        totalPoison++;
+        fx.textContent = points + ' 🍄';
+        fx.style.color = '#8b5cf6';
+    } else {
+        // 好东西
+        const comboMult = Math.min(1 + combo * 0.1, 3);
+        const finalPts = Math.round(points * comboMult);
+        score += finalPts;
+        combo++;
+        if (combo > maxCombo) maxCombo = combo;
+        totalHit++;
+        fx.textContent = '+' + finalPts;
+        fx.style.color = type === 'star' ? '#ffd166' : '#ff6b9d';
+
+        if (combo === 5) showCombo('🔥 连击x5!');
+        else if (combo === 10) showCombo('🔥🔥 连击x10!');
+        else if (combo === 20) showCombo('💥💥 连击x20!');
+        else if (combo >= 30 && combo % 10 === 0) showCombo('🌟 传奇x' + combo);
+    }
+
+    holeEl.appendChild(fx);
+    setTimeout(() => fx.remove(), 700);
+    updateHUD();
+
+    if (lives <= 0) endGame();
+}
+
+// ===== 随机冒出 =====
+function spawnMole() {
+    if (!gameRunning || paused) return;
+
+    const grid = document.getElementById('grid');
+    const holes = grid.children;
+    // 找空的洞
+    const emptyHoles = [];
+    for (let i = 0; i < holes.length; i++) {
+        if (holes[i].dataset.state === 'empty') emptyHoles.push(i);
+    }
+    if (emptyHoles.length === 0) {
+        scheduleNext();
+        return;
+    }
+
+    const idx = emptyHoles[Math.floor(Math.random() * emptyHoles.length)];
+    const hole = holes[idx];
+
+    // 选类型
+    const totalWeight = TYPES.reduce((s, t) => s + t.weight, 0);
+    let r = Math.random() * totalWeight;
+    let chosen = TYPES[0];
+    for (const t of TYPES) {
+        r -= t.weight;
+        if (r <= 0) { chosen = t; break; }
+    }
+
+    // 创建 mole 元素
+    const mole = document.createElement('div');
+    mole.className = 'mole';
+    mole.textContent = chosen.emoji;
+    hole.appendChild(mole);
+    hole.dataset.state = 'up';
+    hole.dataset.type = chosen.type;
+    hole.dataset.points = chosen.points;
+
+    // 弹出动画
+    requestAnimationFrame(() => {
+        mole.classList.add('up');
+    });
+
+    // 停留时间后消失
+    const stayTime = Math.max(500, 1200 - level * 60);
+    setTimeout(() => {
+        if (hole.dataset.state === 'up') {
+            hole.dataset.state = 'empty';
+            mole.classList.remove('up');
+            mole.classList.add('miss');
+            if (chosen.type !== 'bomb' && chosen.type !== 'poison') {
+                totalMiss++;
+                combo = 0;
+                updateHUD();
+            }
+            setTimeout(() => mole.remove(), 300);
+        } else if (hole.dataset.state === 'hit') {
+            setTimeout(() => mole.remove(), 300);
+        }
+    }, stayTime);
+
+    scheduleNext();
+}
+
+function scheduleNext() {
+    const interval = Math.max(250, 800 - level * 50 - Math.random() * 200);
+    spawnTimeout = setTimeout(spawnMole, interval);
+}
+
+// ===== 连击闪字 =====
+function showCombo(text) {
+    const el = document.getElementById('comboFlash');
+    el.textContent = text;
+    el.classList.remove('show');
+    void el.offsetWidth;
+    el.classList.add('show');
+}
+
+// ===== 屏幕震动 =====
+function shakeScreen() {
+    document.body.style.transition = 'none';
+    let count = 0;
+    const shake = () => {
+        const x = (Math.random() - 0.5) * 10;
+        const y = (Math.random() - 0.5) * 10;
+        document.body.style.transform = `translate(${x}px, ${y}px)`;
+        count++;
+        if (count < 8) {
+            requestAnimationFrame(shake);
+        } else {
+            document.body.style.transform = '';
+        }
+    };
+    shake();
+}
+
+// ===== HUD =====
+function updateHUD() {
+    document.getElementById('scoreVal').textContent = score;
+    document.getElementById('comboVal').textContent = combo;
+    document.getElementById('levelVal').textContent = level;
+    document.getElementById('livesVal').textContent = '❤️'.repeat(Math.max(0, lives));
+}
+
+// ===== 计时器 =====
+function startTimer() {
+    gameTimer = 60;
+    document.getElementById('timerFill').style.width = '100%';
+    timerInterval = setInterval(() => {
+        if (paused) return;
+        gameTimer--;
+        const pct = (gameTimer / 60) * 100;
+        document.getElementById('timerFill').style.width = pct + '%';
+
+        // 颜色变化
+        const fill = document.getElementById('timerFill');
+        if (gameTimer <= 10) fill.style.background = '#ff4444';
+        else if (gameTimer <= 20) fill.style.background = 'linear-gradient(90deg, #ff6b9d, #ffd166)';
+
+        // 等级提升
+        const newLevel = Math.floor((60 - gameTimer) / 8) + 1;
+        if (newLevel > level) {
+            level = newLevel;
+            showCombo('⬆️ 等级 ' + level);
+            updateHUD();
+        }
+
+        if (gameTimer <= 0) endGame();
+    }, 1000);
+}
+
+// ===== 开始游戏 =====
+function startGame() {
+    document.getElementById('startScreen').classList.add('hide');
+    document.getElementById('gameArea').classList.add('show');
+    document.getElementById('hud').classList.add('show');
+    document.getElementById('pauseBtn').classList.add('show');
+    document.getElementById('timerBar').classList.add('show');
+
+    score = 0; combo = 0; maxCombo = 0; lives = 3;
+    level = 1; totalHit = 0; totalMiss = 0; totalBomb = 0; totalPoison = 0;
+
+    initGrid();
+    updateHUD();
+    gameRunning = true;
+    paused = false;
+    startTimer();
+    spawnMole();
+}
+
+// ===== 暂停 =====
+function togglePause() {
+    if (!gameRunning) return;
+    paused = !paused;
+    document.getElementById('pauseOverlay').classList.toggle('show', paused);
+    document.getElementById('pauseBtn').textContent = paused ? '▶' : '⏸';
+}
+
+// ===== 结束 =====
+function endGame() {
+    gameRunning = false;
+    clearTimeout(spawnTimeout);
+    clearInterval(timerInterval);
+
+    document.getElementById('gameArea').classList.remove('show');
+    document.getElementById('hud').classList.remove('show');
+    document.getElementById('pauseBtn').classList.remove('show');
+    document.getElementById('timerBar').classList.remove('show');
+
+    document.getElementById('finalScore').textContent = score;
+
+    let title = '游戏结束';
+    let color = '#ff6b9d';
+    if (score >= 1500) { title = '🌟 传奇！'; color = '#ffd166'; }
+    else if (score >= 800) { title = '🔥 太厉害了！'; color = '#ffa8c5'; }
+    else if (score >= 400) { title = '💗 不错哦！'; color = '#ff6b9d'; }
+    else { title = '💪 继续加油！'; color = '#c9a0dc'; }
+
+    document.getElementById('endTitle').textContent = title;
+    document.getElementById('endTitle').style.color = color;
+    document.getElementById('endStats').innerHTML =
+        `命中 <span>${totalHit}</span> 个爱心<br>` +
+        `最高连击 <span>x${maxCombo}</span><br>` +
+        `踩中炸弹 <span>${totalBomb}</span> 次<br>` +
+        `误食毒蘑菇 <span>${totalPoison}</span> 次<br>` +
+        `漏掉 <span>${totalMiss}</span> 个`;
+
+    document.getElementById('endScreen').classList.add('show');
+}
+
+function restartGame() {
+    document.getElementById('endScreen').classList.remove('show');
+    startGame();
+}
+
+function quitGame() {
+    gameRunning = false;
+    paused = false;
+    clearTimeout(spawnTimeout);
+    clearInterval(timerInterval);
+    document.getElementById('gameArea').classList.remove('show');
+    document.getElementById('hud').classList.remove('show');
+    document.getElementById('pauseBtn').classList.remove('show');
+    document.getElementById('timerBar').classList.remove('show');
+    document.getElementById('pauseOverlay').classList.remove('show');
+    document.getElementById('endScreen').classList.remove('show');
+    document.getElementById('startScreen').classList.remove('hide');
+}
+
+document.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
+</script>
+
+</body>
+</html>
