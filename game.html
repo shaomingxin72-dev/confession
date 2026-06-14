@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>常昊旻の爱心收集</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body {
+            background: #0a0014;
+            font-family: -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            color: #fff;
+            overflow: hidden;
+            height: 100vh;
+            touch-action: none;
+            user-select: none;
+        }
+
+        /* ===== 开始界面 ===== */
+        #startScreen {
+            position: fixed; inset: 0;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            z-index: 100;
+            background: linear-gradient(180deg, #0a0014, #1a0028, #0a0014);
+        }
+        #startScreen.hide { display: none; }
+        .title {
+            font-size: 2.2rem;
+            background: linear-gradient(135deg, #ff6b9d, #ffd166);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 8px;
+        }
+        .subtitle { color: #c9a0dc; font-size: 1rem; margin-bottom: 40px; }
+        .start-btn {
+            background: linear-gradient(135deg, #ff6b9d, #ff3d7f);
+            border: none; color: #fff;
+            padding: 16px 60px;
+            font-size: 1.2rem;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 4px 25px rgba(255, 107, 157, 0.5);
+            animation: pulse 2s ease infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 4px 25px rgba(255, 107, 157, 0.5); }
+            50% { box-shadow: 0 4px 40px rgba(255, 107, 157, 0.8); }
+        }
+        .how-to {
+            margin-top: 40px;
+            color: #8a7099;
+            font-size: 0.85rem;
+            text-align: center;
+            line-height: 1.8;
+        }
+        .how-to span { color: #ff6b9d; }
+
+        /* ===== HUD ===== */
+        #hud {
+            position: fixed; top: 0; left: 0; right: 0;
+            display: none;
+            justify-content: space-between;
+            align-items: flex-start;
+            padding: 12px 16px;
+            z-index: 10;
+            pointer-events: none;
+        }
+        #hud.show { display: flex; }
+        .hud-left, .hud-right { display: flex; flex-direction: column; gap: 4px; }
+        .hud-label { font-size: 0.7rem; color: #8a7099; }
+        .hud-value { font-size: 1.3rem; font-weight: bold; }
+        .hud-score .hud-value { color: #ffd166; }
+        .hud-combo .hud-value { color: #ff6b9d; }
+        .hud-level .hud-value { color: #a78bfa; }
+        .hud-lives .hud-value { color: #ff4444; }
+        .hud-right { align-items: flex-end; }
+        .combo-flash {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            font-size: 3rem; font-weight: bold;
+            color: #ffd166;
+            pointer-events: none; z-index: 20;
+            opacity: 0;
+            text-shadow: 0 0 20px rgba(255, 209, 102, 0.8);
+        }
+        .combo-flash.show {
+            animation: comboPop 0.8s ease forwards;
+        }
+        @keyframes comboPop {
+            0% { opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
+            30% { opacity: 1; transform: translate(-50%, -50%) scale(1.3); }
+            100% { opacity: 0; transform: translate(-50%, -60%) scale(1); }
+        }
+
+        /* ===== 画布 ===== */
+        #gameCanvas {
+            display: none;
+            position: fixed; inset: 0;
+            z-index: 5;
+        }
+        #gameCanvas.show { display: block; }
+
+        /* ===== 暂停 ===== */
+        #pauseOverlay {
+            position: fixed; inset: 0;
+            background: rgba(10, 0, 20, 0.85);
+            display: none;
+            flex-direction: column;
+            align-items: center; justify-content: center;
+            z-index: 50;
+        }
+        #pauseOverlay.show { display: flex; }
+        #pauseOverlay h2 { font-size: 2rem; color: #ffa8c5; margin-bottom: 30px; }
+        .pause-btn {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 107, 157, 0.3);
+            color: #ff6b9d;
+            padding: 12px 40px;
+            font-size: 1.1rem;
+            border-radius: 50px;
+            cursor: pointer;
+            margin: 8px;
+        }
+
+        /* ===== 结束界面 ===== */
+        #endScreen {
+            position: fixed; inset: 0;
+            display: none;
+            flex-direction: column;
+            align-items: center; justify-content: center;
+            z-index: 100;
+            background: rgba(10, 0, 20, 0.92);
+        }
+        #endScreen.show { display: flex; }
+        #endScreen h1 { font-size: 2.5rem; margin-bottom: 10px; }
+        #endScreen .final-score { font-size: 4rem; font-weight: bold; color: #ffd166; margin: 10px 0; }
+        #endScreen .stats { color: #c9a0dc; font-size: 0.95rem; line-height: 2; text-align: center; margin: 20px 0; }
+        #endScreen .stats span { color: #ff6b9d; font-weight: bold; }
+        .restart-btn {
+            background: linear-gradient(135deg, #ff6b9d, #ff3d7f);
+            border: none; color: #fff;
+            padding: 16px 60px;
+            font-size: 1.2rem;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 4px 25px rgba(255, 107, 157, 0.5);
+            margin-top: 10px;
+        }
+
+        /* ===== 粒子 ===== */
+        .particle {
+            position: fixed;
+            pointer-events: none;
+            z-index: 15;
+            font-size: 20px;
+            animation: particleFly 1s ease-out forwards;
+        }
+        @keyframes particleFly {
+            0% { opacity: 1; transform: translate(0, 0) scale(1); }
+            100% { opacity: 0; transform: translate(var(--tx), var(--ty)) scale(0.3); }
+        }
+
+        /* ===== 暂停按钮 ===== */
+        #pauseBtn {
+            position: fixed; top: 12px; right: 12px;
+            z-index: 30;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: #aaa;
+            width: 40px; height: 40px;
+            border-radius: 50%;
+            font-size: 1.2rem;
+            cursor: pointer;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+        #pauseBtn.show { display: flex; }
+    </style>
+</head>
+<body>
+
+<!-- 开始界面 -->
+<div id="startScreen">
+    <div style="font-size:4rem; margin-bottom:16px;">💗</div>
+    <div class="title">常昊旻の爱心收集</div>
+    <div class="subtitle">接住爱心，躲开炸弹</div>
+    <button class="start-btn" onclick="startGame()">开始游戏</button>
+    <div class="how-to">
+        <span>👆 左右划动</span> 控制篮子移动<br>
+        接住 <span>💗💕✨</span> 加分<br>
+        躲开 <span>💣</span> 扣命<br>
+        <span>⭐ 星星</span> = 加速 + 高分<br>
+        连续接住触发 <span>连击加成</span>
+    </div>
+</div>
+
+<!-- HUD -->
+<div id="hud">
+    <div class="hud-left">
+        <div class="hud-score"><div class="hud-label">得分</div><div class="hud-value" id="scoreVal">0</div></div>
+        <div class="hud-combo"><div class="hud-label">连击</div><div class="hud-value" id="comboVal">0</div></div>
+    </div>
+    <div class="hud-right">
+        <div class="hud-level"><div class="hud-label">等级</div><div class="hud-value" id="levelVal">1</div></div>
+        <div class="hud-lives"><div class="hud-label">生命</div><div class="hud-value" id="livesVal">❤️❤️❤️</div></div>
+    </div>
+</div>
+
+<!-- 连击闪字 -->
+<div class="combo-flash" id="comboFlash"></div>
+
+<!-- 画布 -->
+<canvas id="gameCanvas"></canvas>
+
+<!-- 暂停按钮 -->
+<button id="pauseBtn" onclick="togglePause()">⏸</button>
+
+<!-- 暂停界面 -->
+<div id="pauseOverlay">
+    <h2>暂停中</h2>
+    <button class="pause-btn" onclick="togglePause()">继续游戏</button>
+    <button class="pause-btn" onclick="quitGame()">退出游戏</button>
+</div>
+
+<!-- 结束界面 -->
+<div id="endScreen">
+    <h1 id="endTitle">游戏结束</h1>
+    <div class="final-score" id="finalScore">0</div>
+    <div class="stats" id="endStats"></div>
+    <button class="restart-btn" onclick="restartGame()">再来一次</button>
+    <button class="pause-btn" style="margin-top:12px;" onclick="quitGame()">返回首页</button>
+</div>
+
+<script>
+// ===== 游戏状态 =====
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+let W, H;
+let animId = null;
+let gameRunning = false;
+let paused = false;
+
+// 玩家
+let basket = { x: 0, y: 0, w: 70, h: 50, targetX: 0, speed: 0 };
+// 掉落物
+let items = [];
+// 粒子
+let particles = [];
+// 星星背景
+let bgStars = [];
+
+// 状态
+let score = 0;
+let combo = 0;
+let maxCombo = 0;
+let lives = 3;
+let level = 1;
+let totalCaught = 0;
+let totalMissed = 0;
+let totalBombs = 0;
+let spawnTimer = 0;
+let levelTimer = 0;
+let difficulty = 1;
+let shakeAmount = 0;
+
+// 掉落物类型
+const ITEM_TYPES = [
+    { emoji: '💗', points: 10, type: 'good', weight: 30 },
+    { emoji: '💕', points: 15, type: 'good', weight: 20 },
+    { emoji: '❤️', points: 10, type: 'good', weight: 20 },
+    { emoji: '💖', points: 20, type: 'good', weight: 10 },
+    { emoji: '✨', points: 25, type: 'good', weight: 8 },
+    { emoji: '⭐', points: 50, type: 'star', weight: 5 },
+    { emoji: '🌸', points: 15, type: 'good', weight: 15 },
+    { emoji: '💣', points: -1, type: 'bomb', weight: 20 },
+];
+
+// ===== 工具函数 =====
+function rand(a, b) { return a + Math.random() * (b - a); }
+function randInt(a, b) { return Math.floor(rand(a, b + 1)); }
+
+function resize() {
+    W = canvas.width = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+    basket.y = H - 90;
+    basket.w = Math.min(70, W * 0.15);
+    basket.h = basket.w * 0.7;
+}
+
+window.addEventListener('resize', resize);
+resize();
+
+// ===== 背景星星 =====
+function initStars() {
+    bgStars = [];
+    for (let i = 0; i < 80; i++) {
+        bgStars.push({
+            x: rand(0, W), y: rand(0, H),
+            r: rand(0.5, 2),
+            twinkleSpeed: rand(0.01, 0.04),
+            twinklePhase: rand(0, Math.PI * 2),
+            alpha: rand(0.2, 0.8)
+        });
+    }
+}
+
+// ===== 掉落物生成 =====
+function spawnItem() {
+    // 按权重选择类型
+    const totalWeight = ITEM_TYPES.reduce((s, t) => s + t.weight, 0);
+    let r = rand(0, totalWeight);
+    let chosen = ITEM_TYPES[0];
+    for (const t of ITEM_TYPES) {
+        r -= t.weight;
+        if (r <= 0) { chosen = t; break; }
+    }
+
+    const size = chosen.type === 'star' ? 35 : 30;
+    items.push({
+        x: rand(size, W - size),
+        y: -size,
+        size: size,
+        speed: rand(1.5, 3) * difficulty + rand(0, 0.5),
+        wobble: rand(0, Math.PI * 2),
+        wobbleSpeed: rand(0.02, 0.05),
+        wobbleAmp: rand(0.3, 1.2),
+        rotation: rand(0, Math.PI * 2),
+        rotSpeed: rand(-0.03, 0.03),
+        ...chosen
+    });
+}
+
+// ===== 触摸控制 =====
+let touchX = null;
+let touching = false;
+
+canvas.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    touching = true;
+    touchX = e.touches[0].clientX;
+    basket.targetX = touchX;
+}, { passive: false });
+
+canvas.addEventListener('touchmove', (e) => {
+    e.preventDefault();
+    if (!touching) return;
+    touchX = e.touches[0].clientX;
+    basket.targetX = touchX;
+}, { passive: false });
+
+canvas.addEventListener('touchend', (e) => {
+    e.preventDefault();
+    touching = false;
+}, { passive: false });
+
+// 鼠标支持
+canvas.addEventListener('mousemove', (e) => {
+    basket.targetX = e.clientX;
+});
+canvas.addEventListener('mousedown', (e) => {
+    basket.targetX = e.clientX;
+});
+
+// ===== 碰撞检测 =====
+function checkCollision(item) {
+    const bx = basket.x;
+    const by = basket.y;
+    const bw = basket.w;
+    const bh = basket.h;
+    const ix = item.x;
+    const iy = item.y;
+    const ir = item.size * 0.4;
+
+    // 简单矩形 vs 圆碰撞
+    const closestX = Math.max(bx - bw / 2, Math.min(ix, bx + bw / 2));
+    const closestY = Math.max(by - bh / 2, Math.min(iy, by + bh / 2));
+    const dx = ix - closestX;
+    const dy = iy - closestY;
+    return (dx * dx + dy * dy) < (ir * ir);
+}
+
+// ===== 粒子效果 =====
+function spawnParticles(x, y, emoji, count) {
+    for (let i = 0; i < count; i++) {
+        const p = document.createElement('div');
+        p.className = 'particle';
+        p.textContent = emoji;
+        p.style.left = x + 'px';
+        p.style.top = y + 'px';
+        const angle = rand(0, Math.PI * 2);
+        const dist = rand(30, 80);
+        p.style.setProperty('--tx', Math.cos(angle) * dist + 'px');
+        p.style.setProperty('--ty', Math.sin(angle) * dist - 30 + 'px');
+        document.body.appendChild(p);
+        setTimeout(() => p.remove(), 1000);
+    }
+}
+
+// ===== 连击闪字 =====
+function showCombo(text) {
+    const el = document.getElementById('comboFlash');
+    el.textContent = text;
+    el.classList.remove('show');
+    void el.offsetWidth;
+    el.classList.add('show');
+}
+
+// ===== HUD 更新 =====
+function updateHUD() {
+    document.getElementById('scoreVal').textContent = score;
+    document.getElementById('comboVal').textContent = combo;
+    document.getElementById('levelVal').textContent = level;
+    document.getElementById('livesVal').textContent = '❤️'.repeat(Math.max(0, lives));
+}
+
+// ===== 游戏主循环 =====
+function gameLoop() {
+    if (!gameRunning || paused) return;
+    animId = requestAnimationFrame(gameLoop);
+
+    // 清屏 + 震动
+    ctx.save();
+    if (shakeAmount > 0) {
+        ctx.translate(rand(-shakeAmount, shakeAmount), rand(-shakeAmount, shakeAmount));
+        shakeAmount *= 0.9;
+        if (shakeAmount < 0.5) shakeAmount = 0;
+    }
+
+    // 背景
+    ctx.fillStyle = '#0a0014';
+    ctx.fillRect(-10, -10, W + 20, H + 20);
+
+    // 星星
+    const now = Date.now() / 1000;
+    for (const s of bgStars) {
+        const a = s.alpha + Math.sin(now * s.twinkleSpeed * 10 + s.twinklePhase) * 0.3;
+        ctx.globalAlpha = Math.max(0, Math.min(1, a));
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+
+    // 背景光效
+    const grad1 = ctx.createRadialGradient(W * 0.2, H * 0.3, 0, W * 0.2, H * 0.3, 200);
+    grad1.addColorStop(0, 'rgba(255, 107, 157, 0.04)');
+    grad1.addColorStop(1, 'transparent');
+    ctx.fillStyle = grad1;
+    ctx.fillRect(0, 0, W, H);
+
+    const grad2 = ctx.createRadialGradient(W * 0.8, H * 0.7, 0, W * 0.8, H * 0.7, 180);
+    grad2.addColorStop(0, 'rgba(138, 79, 255, 0.03)');
+    grad2.addColorStop(1, 'transparent');
+    ctx.fillStyle = grad2;
+    ctx.fillRect(0, 0, W, H);
+
+    // 篮子移动
+    if (touching) {
+        const dx = basket.targetX - basket.x;
+        basket.x += dx * 0.25;
+    } else {
+        // 缓慢回中
+        basket.x += (W / 2 - basket.x) * 0.005;
+    }
+    basket.x = Math.max(basket.w / 2, Math.min(W - basket.w / 2, basket.x));
+
+    // 生成掉落物
+    spawnTimer++;
+    const spawnInterval = Math.max(20, 60 - level * 4);
+    if (spawnTimer >= spawnInterval) {
+        spawnItem();
+        spawnTimer = 0;
+    }
+
+    // 更新掉落物
+    for (let i = items.length - 1; i >= 0; i--) {
+        const item = items[i];
+        item.y += item.speed;
+        item.wobble += item.wobbleSpeed;
+        item.x += Math.sin(item.wobble) * item.wobbleAmp;
+        item.rotation += item.rotSpeed;
+
+        // 超出屏幕
+        if (item.y > H + 40) {
+            if (item.type !== 'bomb') {
+                totalMissed++;
+                combo = 0;
+            }
+            items.splice(i, 1);
+            continue;
+        }
+
+        // 碰撞检测
+        if (checkCollision(item)) {
+            if (item.type === 'bomb') {
+                // 炸弹
+                lives--;
+                combo = 0;
+                shakeAmount = 12;
+                totalBombs++;
+                spawnParticles(item.x, item.y, '💥', 6);
+                showCombo('💥');
+            } else if (item.type === 'star') {
+                // 星星 - 高分
+                const comboMult = Math.min(1 + combo * 0.1, 3);
+                score += Math.round(item.points * comboMult);
+                combo++;
+                totalCaught++;
+                spawnParticles(item.x, item.y, '⭐', 8);
+                showCombo('⭐ +' + Math.round(item.points * comboMult));
+            } else {
+                // 普通爱心
+                const comboMult = Math.min(1 + combo * 0.1, 3);
+                score += Math.round(item.points * comboMult);
+                combo++;
+                if (combo > maxCombo) maxCombo = combo;
+                totalCaught++;
+                spawnParticles(item.x, item.y, item.emoji, 4);
+
+                if (combo === 5) showCombo('🔥 连击x5!');
+                else if (combo === 10) showCombo('🔥🔥 连击x10!');
+                else if (combo === 20) showCombo('💥💥💥 连击x20!');
+                else if (combo >= 30 && combo % 10 === 0) showCombo('🌟 传奇连击x' + combo + '!');
+            }
+            items.splice(i, 1);
+            updateHUD();
+
+            if (lives <= 0) {
+                endGame();
+                return;
+            }
+        }
+    }
+
+    // 等级提升
+    levelTimer++;
+    if (levelTimer >= 600) { // ~10秒
+        level++;
+        difficulty = 1 + (level - 1) * 0.15;
+        levelTimer = 0;
+        showCombo('⬆️ 等级 ' + level);
+        updateHUD();
+    }
+
+    // 绘制掉落物
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    for (const item of items) {
+        ctx.save();
+        ctx.translate(item.x, item.y);
+        ctx.rotate(item.rotation);
+        ctx.font = item.size + 'px serif';
+        ctx.fillText(item.emoji, 0, 0);
+
+        // 星星发光
+        if (item.type === 'star') {
+            ctx.globalAlpha = 0.3 + Math.sin(now * 5) * 0.2;
+            ctx.shadowColor = '#ffd166';
+            ctx.shadowBlur = 15;
+            ctx.fillText('⭐', 0, 0);
+            ctx.shadowBlur = 0;
+            ctx.globalAlpha = 1;
+        }
+        ctx.restore();
+    }
+
+    // 绘制篮子
+    ctx.save();
+    ctx.translate(basket.x, basket.y);
+
+    // 篮子阴影
+    ctx.shadowColor = 'rgba(255, 107, 157, 0.4)';
+    ctx.shadowBlur = 15;
+
+    // 篮子主体
+    const bw = basket.w, bh = basket.h;
+    ctx.beginPath();
+    ctx.moveTo(-bw / 2, -bh / 3);
+    ctx.lineTo(-bw / 2 - 5, bh / 2);
+    ctx.lineTo(bw / 2 + 5, bh / 2);
+    ctx.lineTo(bw / 2, -bh / 3);
+    ctx.closePath();
+    const basketGrad = ctx.createLinearGradient(0, -bh / 3, 0, bh / 2);
+    basketGrad.addColorStop(0, '#ff6b9d');
+    basketGrad.addColorStop(1, '#ff3d7f');
+    ctx.fillStyle = basketGrad;
+    ctx.fill();
+
+    // 篮子边缘
+    ctx.beginPath();
+    ctx.ellipse(0, -bh / 3, bw / 2 + 3, 8, 0, 0, Math.PI * 2);
+    ctx.fillStyle = '#ffa8c5';
+    ctx.fill();
+
+    // 篮子纹理线
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+    ctx.lineWidth = 1;
+    for (let i = -2; i <= 2; i++) {
+        ctx.beginPath();
+        ctx.moveTo(i * (bw / 6), -bh / 3 + 5);
+        ctx.lineTo(i * (bw / 6) - 2, bh / 2 - 3);
+        ctx.stroke();
+    }
+
+    ctx.shadowBlur = 0;
+    ctx.restore();
+
+    // combo 指示环
+    if (combo >= 5) {
+        ctx.save();
+        ctx.globalAlpha = 0.15 + Math.sin(now * 4) * 0.1;
+        const radius = basket.w * 0.8 + combo;
+        ctx.beginPath();
+        ctx.arc(basket.x, basket.y, radius, 0, Math.PI * 2);
+        ctx.strokeStyle = combo >= 20 ? '#ffd166' : '#ff6b9d';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+        ctx.restore();
+    }
+
+    ctx.restore(); // shakeAmount restore
+}
+
+// ===== 开始游戏 =====
+function startGame() {
+    document.getElementById('startScreen').classList.add('hide');
+    canvas.classList.add('show');
+    document.getElementById('hud').classList.add('show');
+    document.getElementById('pauseBtn').classList.add('show');
+
+    score = 0; combo = 0; maxCombo = 0; lives = 3;
+    level = 1; totalCaught = 0; totalMissed = 0; totalBombs = 0;
+    spawnTimer = 0; levelTimer = 0; difficulty = 1; shakeAmount = 0;
+    items = []; particles = [];
+
+    resize();
+    initStars();
+    basket.x = W / 2;
+    basket.targetX = W / 2;
+
+    updateHUD();
+    gameRunning = true;
+    paused = false;
+    gameLoop();
+}
+
+// ===== 暂停 =====
+function togglePause() {
+    if (!gameRunning) return;
+    paused = !paused;
+    document.getElementById('pauseOverlay').classList.toggle('show', paused);
+    document.getElementById('pauseBtn').textContent = paused ? '▶' : '⏸';
+    if (!paused) gameLoop();
+}
+
+// ===== 结束 =====
+function endGame() {
+    gameRunning = false;
+    if (animId) cancelAnimationFrame(animId);
+
+    canvas.classList.remove('show');
+    document.getElementById('hud').classList.remove('show');
+    document.getElementById('pauseBtn').classList.remove('show');
+
+    const endScreen = document.getElementById('endScreen');
+    document.getElementById('finalScore').textContent = score;
+
+    let title = '游戏结束';
+    let color = '#ff6b9d';
+    if (score >= 2000) { title = '🌟 传奇！'; color = '#ffd166'; }
+    else if (score >= 1000) { title = '🔥 太厉害了！'; color = '#ffa8c5'; }
+    else if (score >= 500) { title = '💗 不错哦！'; color = '#ff6b9d'; }
+    else { title = '💪 继续加油！'; color = '#c9a0dc'; }
+
+    document.getElementById('endTitle').textContent = title;
+    document.getElementById('endTitle').style.color = color;
+    document.getElementById('endStats').innerHTML =
+        `收集 <span>${totalCaught}</span> 颗爱心<br>` +
+        `最高连击 <span>x${maxCombo}</span><br>` +
+        `达到等级 <span>${level}</span><br>` +
+        `踩中炸弹 <span>${totalBombs}</span> 次`;
+
+    endScreen.classList.add('show');
+}
+
+// ===== 重新开始 =====
+function restartGame() {
+    document.getElementById('endScreen').classList.remove('show');
+    startGame();
+}
+
+// ===== 退出 =====
+function quitGame() {
+    gameRunning = false;
+    paused = false;
+    if (animId) cancelAnimationFrame(animId);
+    canvas.classList.remove('show');
+    document.getElementById('hud').classList.remove('show');
+    document.getElementById('pauseBtn').classList.remove('show');
+    document.getElementById('pauseOverlay').classList.remove('show');
+    document.getElementById('endScreen').classList.remove('show');
+    document.getElementById('startScreen').classList.remove('hide');
+}
+
+// ===== 键盘支持 =====
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') togglePause();
+    if (e.key === 'ArrowLeft') { touching = true; basket.targetX = basket.x - 40; }
+    if (e.key === 'ArrowRight') { touching = true; basket.targetX = basket.x + 40; }
+});
+document.addEventListener('keyup', () => { touching = false; });
+
+// 防止页面滚动
+document.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
+</script>
+
+</body>
+</html>
