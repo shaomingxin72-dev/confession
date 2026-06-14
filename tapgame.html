@@ -309,7 +309,7 @@ let totalBomb = 0;
 let totalPoison = 0;
 let gameTimer = 60; // 60秒一局
 let timerInterval = null;
-let spawnTimeout = null;
+let spawnInterval = null;
 
 // ===== 物品类型 =====
 const TYPES = [
@@ -419,21 +419,19 @@ function tapHole(index, holeEl, x, y) {
     if (lives <= 0) endGame();
 }
 
-// ===== 随机冒出 =====
-function spawnMole() {
+// ===== 生成单个 mole =====
+function spawnOne() {
     if (!gameRunning || paused) return;
-
     const grid = document.getElementById('grid');
+    if (!grid) return;
     const holes = grid.children;
+
     // 找空的洞
     const emptyHoles = [];
     for (let i = 0; i < holes.length; i++) {
         if (holes[i].dataset.state === 'empty') emptyHoles.push(i);
     }
-    if (emptyHoles.length === 0) {
-        scheduleNext();
-        return;
-    }
+    if (emptyHoles.length === 0) return;
 
     const idx = emptyHoles[Math.floor(Math.random() * emptyHoles.length)];
     const hole = holes[idx];
@@ -458,34 +456,38 @@ function spawnMole() {
 
     // 弹出动画
     requestAnimationFrame(() => {
-        mole.classList.add('up');
+        if (mole.parentNode) mole.classList.add('up');
     });
 
     // 停留时间后消失
-    const stayTime = Math.max(500, 1200 - level * 60);
-    const thisMole = mole; // 闭包引用
+    const stayTime = Math.max(600, 1400 - level * 70);
     setTimeout(() => {
-        // 只处理还在 'up' 状态的（没被点过的）
         if (hole.dataset.state === 'up') {
             hole.dataset.state = 'empty';
-            thisMole.classList.remove('up');
-            thisMole.classList.add('miss');
+            mole.classList.remove('up');
+            mole.classList.add('miss');
             if (chosen.type !== 'bomb' && chosen.type !== 'poison') {
                 totalMiss++;
                 combo = 0;
                 updateHUD();
             }
-            setTimeout(() => thisMole.remove(), 300);
+            setTimeout(() => { if (mole.parentNode) mole.remove(); }, 300);
         }
-        // 'hit' 状态的已经在 tapHole 里处理了，这里不管
     }, stayTime);
-
-    scheduleNext();
 }
 
-function scheduleNext() {
-    const interval = Math.max(250, 800 - level * 50 - Math.random() * 200);
-    spawnTimeout = setTimeout(spawnMole, interval);
+// ===== 主生成循环（setInterval，不会断链）=====
+function startSpawning() {
+    // 先立即生成一个
+    spawnOne();
+    // 然后按节奏持续生成
+    spawnInterval = setInterval(() => {
+        if (!gameRunning || paused) return;
+        spawnOne();
+        // 高等级同时出多个
+        if (level >= 3 && Math.random() < 0.3) spawnOne();
+        if (level >= 5 && Math.random() < 0.2) spawnOne();
+    }, Math.max(400, 1000 - level * 60));
 }
 
 // ===== 连击闪字 =====
@@ -544,6 +546,9 @@ function startTimer() {
             level = newLevel;
             showCombo('⬆️ 等级 ' + level);
             updateHUD();
+            // 重启生成器，加快速率
+            clearInterval(spawnInterval);
+            startSpawning();
         }
 
         if (gameTimer <= 0) endGame();
@@ -566,7 +571,7 @@ function startGame() {
     gameRunning = true;
     paused = false;
     startTimer();
-    spawnMole();
+    startSpawning();
 }
 
 // ===== 暂停 =====
@@ -580,7 +585,7 @@ function togglePause() {
 // ===== 结束 =====
 function endGame() {
     gameRunning = false;
-    clearTimeout(spawnTimeout);
+    clearInterval(spawnInterval);
     clearInterval(timerInterval);
 
     document.getElementById('gameArea').classList.remove('show');
@@ -617,7 +622,7 @@ function restartGame() {
 function quitGame() {
     gameRunning = false;
     paused = false;
-    clearTimeout(spawnTimeout);
+    clearInterval(spawnInterval);
     clearInterval(timerInterval);
     document.getElementById('gameArea').classList.remove('show');
     document.getElementById('hud').classList.remove('show');
