@@ -63,7 +63,7 @@
             justify-content: space-between;
             align-items: flex-start;
             padding: 12px 16px;
-            z-index: 10;
+            z-index: 20;
             pointer-events: none;
         }
         #hud.show { display: flex; }
@@ -75,13 +75,16 @@
         .hud-level .hud-value { color: #a78bfa; }
         .hud-lives .hud-value { color: #ff4444; }
         .hud-right { align-items: flex-end; }
+
+        /* ===== 连击闪字 ===== */
         .combo-flash {
-            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            font-size: 3rem; font-weight: bold;
+            position: fixed; top: 45%; left: 50%; transform: translate(-50%, -50%);
+            font-size: 2.5rem; font-weight: bold;
             color: #ffd166;
-            pointer-events: none; z-index: 20;
+            pointer-events: none; z-index: 25;
             opacity: 0;
             text-shadow: 0 0 20px rgba(255, 209, 102, 0.8);
+            white-space: nowrap;
         }
         .combo-flash.show {
             animation: comboPop 0.8s ease forwards;
@@ -92,13 +95,67 @@
             100% { opacity: 0; transform: translate(-50%, -60%) scale(1); }
         }
 
-        /* ===== 画布 ===== */
-        #gameCanvas {
-            display: none;
+        /* ===== 游戏层 ===== */
+        #gameLayer {
             position: fixed; inset: 0;
+            display: none;
             z-index: 5;
         }
-        #gameCanvas.show { display: block; }
+        #gameLayer.show { display: block; }
+
+        /* ===== 掉落物 DOM ===== */
+        .fall-item {
+            position: absolute;
+            font-size: 28px;
+            line-height: 1;
+            pointer-events: none;
+            will-change: transform;
+            transition: none;
+        }
+        .fall-item.star { font-size: 34px; filter: drop-shadow(0 0 6px rgba(255, 209, 102, 0.8)); }
+        .fall-item.bomb { font-size: 30px; }
+
+        /* ===== 篮子 ===== */
+        #basket {
+            position: absolute;
+            width: 70px; height: 50px;
+            pointer-events: none;
+            will-change: transform;
+            z-index: 10;
+        }
+        #basket .basket-body {
+            position: absolute;
+            bottom: 0; left: 5px; right: 5px;
+            height: 36px;
+            background: linear-gradient(180deg, #ff6b9d, #ff3d7f);
+            border-radius: 4px 4px 10px 10px;
+            box-shadow: 0 4px 15px rgba(255, 107, 157, 0.4);
+        }
+        #basket .basket-rim {
+            position: absolute;
+            top: 8px; left: 0; right: 0;
+            height: 10px;
+            background: #ffa8c5;
+            border-radius: 5px;
+        }
+        #basket .basket-line {
+            position: absolute;
+            bottom: 4px; left: 5px; right: 5px;
+            height: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 2px 2px 8px 8px;
+        }
+
+        /* ===== combo 光环 ===== */
+        #comboRing {
+            position: absolute;
+            border-radius: 50%;
+            border: 2px solid transparent;
+            pointer-events: none;
+            z-index: 9;
+            will-change: transform;
+            transition: border-color 0.3s;
+        }
 
         /* ===== 暂停 ===== */
         #pauseOverlay {
@@ -151,13 +208,27 @@
         .particle {
             position: fixed;
             pointer-events: none;
-            z-index: 15;
+            z-index: 30;
             font-size: 20px;
             animation: particleFly 1s ease-out forwards;
         }
         @keyframes particleFly {
             0% { opacity: 1; transform: translate(0, 0) scale(1); }
             100% { opacity: 0; transform: translate(var(--tx), var(--ty)) scale(0.3); }
+        }
+
+        /* ===== 分数弹出 ===== */
+        .score-pop {
+            position: fixed;
+            pointer-events: none;
+            z-index: 30;
+            font-size: 1.2rem;
+            font-weight: bold;
+            animation: scorePop 0.8s ease-out forwards;
+        }
+        @keyframes scorePop {
+            0% { opacity: 1; transform: translateY(0) scale(1); }
+            100% { opacity: 0; transform: translateY(-50px) scale(0.7); }
         }
 
         /* ===== 暂停按钮 ===== */
@@ -187,10 +258,10 @@
     <div class="subtitle">接住爱心，躲开炸弹</div>
     <button class="start-btn" onclick="startGame()">开始游戏</button>
     <div class="how-to">
-        <span>👆 左右划动</span> 控制篮子移动<br>
-        接住 <span>💗💕✨</span> 加分<br>
+        <span>👆 手指划动</span> 控制篮子移动<br>
+        接住 <span>💗💕✨🌸</span> 加分<br>
         躲开 <span>💣</span> 扣命<br>
-        <span>⭐ 星星</span> = 加速 + 高分<br>
+        <span>⭐ 星星</span> = 高分<br>
         连续接住触发 <span>连击加成</span>
     </div>
 </div>
@@ -210,8 +281,15 @@
 <!-- 连击闪字 -->
 <div class="combo-flash" id="comboFlash"></div>
 
-<!-- 画布 -->
-<canvas id="gameCanvas"></canvas>
+<!-- 游戏层 -->
+<div id="gameLayer">
+    <div id="comboRing"></div>
+    <div id="basket">
+        <div class="basket-rim"></div>
+        <div class="basket-body"></div>
+        <div class="basket-line"></div>
+    </div>
+</div>
 
 <!-- 暂停按钮 -->
 <button id="pauseBtn" onclick="togglePause()">⏸</button>
@@ -234,21 +312,22 @@
 
 <script>
 // ===== 游戏状态 =====
-const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
+const gameLayer = document.getElementById('gameLayer');
+const basketEl = document.getElementById('basket');
+const comboRingEl = document.getElementById('comboRing');
 let W, H;
 let animId = null;
 let gameRunning = false;
 let paused = false;
 
-// 玩家
-let basket = { x: 0, y: 0, w: 70, h: 50, targetX: 0, speed: 0 };
+// 篮子
+let basket = { x: 0, y: 0, w: 70, h: 50 };
 // 掉落物
 let items = [];
-// 粒子
-let particles = [];
-// 星星背景
-let bgStars = [];
+// DOM 元素池
+let itemEls = [];
+// 星星背景（用 canvas 画）
+let bgCanvas, bgCtx;
 
 // 状态
 let score = 0;
@@ -263,51 +342,68 @@ let spawnTimer = 0;
 let levelTimer = 0;
 let difficulty = 1;
 let shakeAmount = 0;
+let shakeX = 0, shakeY = 0;
 
 // 掉落物类型
 const ITEM_TYPES = [
-    { emoji: '💗', points: 10, type: 'good', weight: 30 },
-    { emoji: '💕', points: 15, type: 'good', weight: 20 },
-    { emoji: '❤️', points: 10, type: 'good', weight: 20 },
-    { emoji: '💖', points: 20, type: 'good', weight: 10 },
-    { emoji: '✨', points: 25, type: 'good', weight: 8 },
-    { emoji: '⭐', points: 50, type: 'star', weight: 5 },
-    { emoji: '🌸', points: 15, type: 'good', weight: 15 },
-    { emoji: '💣', points: -1, type: 'bomb', weight: 20 },
+    { emoji: '💗', points: 10, type: 'good', weight: 30, cls: '' },
+    { emoji: '💕', points: 15, type: 'good', weight: 20, cls: '' },
+    { emoji: '❤️', points: 10, type: 'good', weight: 20, cls: '' },
+    { emoji: '💖', points: 20, type: 'good', weight: 10, cls: '' },
+    { emoji: '✨', points: 25, type: 'good', weight: 8, cls: '' },
+    { emoji: '⭐', points: 50, type: 'star', weight: 5, cls: 'star' },
+    { emoji: '🌸', points: 15, type: 'good', weight: 15, cls: '' },
+    { emoji: '💣', points: -1, type: 'bomb', weight: 20, cls: 'bomb' },
 ];
 
 // ===== 工具函数 =====
 function rand(a, b) { return a + Math.random() * (b - a); }
-function randInt(a, b) { return Math.floor(rand(a, b + 1)); }
 
 function resize() {
-    W = canvas.width = window.innerWidth;
-    H = canvas.height = window.innerHeight;
-    basket.y = H - 90;
-    basket.w = Math.min(70, W * 0.15);
-    basket.h = basket.w * 0.7;
+    W = window.innerWidth;
+    H = window.innerHeight;
+    if (!bgCanvas) {
+        bgCanvas = document.createElement('canvas');
+        bgCtx = bgCanvas.getContext('2d');
+        gameLayer.insertBefore(bgCanvas, gameLayer.firstChild);
+        bgCanvas.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;';
+    }
+    bgCanvas.width = W;
+    bgCanvas.height = H;
+    basket.w = Math.min(70, W * 0.16);
+    basket.h = 50;
 }
-
 window.addEventListener('resize', resize);
 resize();
 
-// ===== 背景星星 =====
-function initStars() {
-    bgStars = [];
-    for (let i = 0; i < 80; i++) {
-        bgStars.push({
-            x: rand(0, W), y: rand(0, H),
-            r: rand(0.5, 2),
-            twinkleSpeed: rand(0.01, 0.04),
-            twinklePhase: rand(0, Math.PI * 2),
-            alpha: rand(0.2, 0.8)
-        });
+// ===== 绘制静态星空背景 =====
+function drawBg() {
+    bgCtx.fillStyle = '#0a0014';
+    bgCtx.fillRect(0, 0, W, H);
+    // 星星
+    for (let i = 0; i < 100; i++) {
+        bgCtx.globalAlpha = rand(0.2, 0.9);
+        bgCtx.fillStyle = '#fff';
+        bgCtx.beginPath();
+        bgCtx.arc(rand(0, W), rand(0, H), rand(0.5, 2), 0, Math.PI * 2);
+        bgCtx.fill();
     }
+    bgCtx.globalAlpha = 1;
+    // 光效
+    const g1 = bgCtx.createRadialGradient(W * 0.2, H * 0.3, 0, W * 0.2, H * 0.3, 200);
+    g1.addColorStop(0, 'rgba(255,107,157,0.05)');
+    g1.addColorStop(1, 'transparent');
+    bgCtx.fillStyle = g1;
+    bgCtx.fillRect(0, 0, W, H);
+    const g2 = bgCtx.createRadialGradient(W * 0.8, H * 0.7, 0, W * 0.8, H * 0.7, 180);
+    g2.addColorStop(0, 'rgba(138,79,255,0.04)');
+    g2.addColorStop(1, 'transparent');
+    bgCtx.fillStyle = g2;
+    bgCtx.fillRect(0, 0, W, H);
 }
 
 // ===== 掉落物生成 =====
 function spawnItem() {
-    // 按权重选择类型
     const totalWeight = ITEM_TYPES.reduce((s, t) => s + t.weight, 0);
     let r = rand(0, totalWeight);
     let chosen = ITEM_TYPES[0];
@@ -316,68 +412,79 @@ function spawnItem() {
         if (r <= 0) { chosen = t; break; }
     }
 
-    const size = chosen.type === 'star' ? 35 : 30;
-    items.push({
+    const size = chosen.type === 'star' ? 34 : 28;
+    const item = {
         x: rand(size, W - size),
-        y: -size,
+        y: -size - 10,
         size: size,
         speed: rand(1.5, 3) * difficulty + rand(0, 0.5),
         wobble: rand(0, Math.PI * 2),
         wobbleSpeed: rand(0.02, 0.05),
-        wobbleAmp: rand(0.3, 1.2),
-        rotation: rand(0, Math.PI * 2),
-        rotSpeed: rand(-0.03, 0.03),
-        ...chosen
-    });
+        wobbleAmp: rand(0.3, 1.0),
+        ...chosen,
+        el: null,
+        alive: true,
+    };
+
+    // 创建 DOM 元素
+    const el = document.createElement('div');
+    el.className = 'fall-item ' + chosen.cls;
+    el.textContent = chosen.emoji;
+    el.style.left = '0px';
+    el.style.top = '0px';
+    gameLayer.appendChild(el);
+    item.el = el;
+
+    items.push(item);
 }
 
-// ===== 触摸控制 =====
-let touchX = null;
-let touching = false;
+// ===== 触摸控制 - 手指直接控制篮子位置 =====
+let touchActive = false;
+let touchOffsetX = 0;
+let touchOffsetY = 0;
 
-canvas.addEventListener('touchstart', (e) => {
+function handleTouch(x, y) {
+    // 篮子跟随手指，偏移一点让手指不挡住
+    basket.x = x + touchOffsetX;
+    basket.y = y + touchOffsetY - 60;
+    // 边界限制
+    basket.x = Math.max(basket.w / 2 + 5, Math.min(W - basket.w / 2 - 5, basket.x));
+    basket.y = Math.max(H * 0.3, Math.min(H - 60, basket.y));
+}
+
+document.addEventListener('touchstart', (e) => {
     e.preventDefault();
-    touching = true;
-    touchX = e.touches[0].clientX;
-    basket.targetX = touchX;
+    touchActive = true;
+    const t = e.touches[0];
+    touchOffsetX = basket.x - t.clientX;
+    touchOffsetY = basket.y - t.clientY + 60;
+    handleTouch(t.clientX, t.clientY);
 }, { passive: false });
 
-canvas.addEventListener('touchmove', (e) => {
+document.addEventListener('touchmove', (e) => {
     e.preventDefault();
-    if (!touching) return;
-    touchX = e.touches[0].clientX;
-    basket.targetX = touchX;
+    if (!touchActive || !gameRunning || paused) return;
+    const t = e.touches[0];
+    handleTouch(t.clientX, t.clientY);
 }, { passive: false });
 
-canvas.addEventListener('touchend', (e) => {
+document.addEventListener('touchend', (e) => {
     e.preventDefault();
-    touching = false;
+    touchActive = false;
 }, { passive: false });
 
-// 鼠标支持
-canvas.addEventListener('mousemove', (e) => {
-    basket.targetX = e.clientX;
-});
-canvas.addEventListener('mousedown', (e) => {
-    basket.targetX = e.clientX;
+// 鼠标支持（PC 测试用）
+document.addEventListener('mousemove', (e) => {
+    if (!gameRunning || paused) return;
+    handleTouch(e.clientX, e.clientY);
 });
 
 // ===== 碰撞检测 =====
 function checkCollision(item) {
-    const bx = basket.x;
-    const by = basket.y;
-    const bw = basket.w;
-    const bh = basket.h;
-    const ix = item.x;
-    const iy = item.y;
-    const ir = item.size * 0.4;
-
-    // 简单矩形 vs 圆碰撞
-    const closestX = Math.max(bx - bw / 2, Math.min(ix, bx + bw / 2));
-    const closestY = Math.max(by - bh / 2, Math.min(iy, by + bh / 2));
-    const dx = ix - closestX;
-    const dy = iy - closestY;
-    return (dx * dx + dy * dy) < (ir * ir);
+    const dx = item.x - basket.x;
+    const dy = item.y - basket.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    return dist < (basket.w / 2 + item.size / 2) * 0.7;
 }
 
 // ===== 粒子效果 =====
@@ -397,6 +504,19 @@ function spawnParticles(x, y, emoji, count) {
     }
 }
 
+// ===== 分数弹出 =====
+function showScorePop(x, y, text, color) {
+    const p = document.createElement('div');
+    p.className = 'score-pop';
+    p.textContent = text;
+    p.style.left = x + 'px';
+    p.style.top = y + 'px';
+    p.style.color = color || '#ffd166';
+    p.style.textShadow = '0 0 8px ' + (color || 'rgba(255,209,102,0.6)');
+    document.body.appendChild(p);
+    setTimeout(() => p.remove(), 800);
+}
+
 // ===== 连击闪字 =====
 function showCombo(text) {
     const el = document.getElementById('comboFlash');
@@ -414,61 +534,52 @@ function updateHUD() {
     document.getElementById('livesVal').textContent = '❤️'.repeat(Math.max(0, lives));
 }
 
+// ===== 更新篮子 DOM 位置 =====
+function updateBasketDOM() {
+    basketEl.style.transform = `translate(${basket.x - basket.w / 2}px, ${basket.y - basket.h / 2}px)`;
+
+    // combo 光环
+    if (combo >= 5) {
+        const ringSize = basket.w + 20 + Math.min(combo, 30);
+        comboRingEl.style.width = ringSize + 'px';
+        comboRingEl.style.height = ringSize + 'px';
+        comboRingEl.style.transform = `translate(${basket.x - ringSize / 2}px, ${basket.y - ringSize / 2}px)`;
+        comboRingEl.style.borderColor = combo >= 20 ? 'rgba(255,209,102,0.2)' : 'rgba(255,107,157,0.15)';
+        comboRingEl.style.opacity = '1';
+    } else {
+        comboRingEl.style.opacity = '0';
+    }
+}
+
 // ===== 游戏主循环 =====
-function gameLoop() {
+let lastTime = 0;
+
+function gameLoop(timestamp) {
     if (!gameRunning || paused) return;
     animId = requestAnimationFrame(gameLoop);
 
-    // 清屏 + 震动
-    ctx.save();
+    if (!lastTime) lastTime = timestamp;
+    const dt = Math.min(timestamp - lastTime, 33); // cap at ~30fps min
+    lastTime = timestamp;
+    const dtFactor = dt / 16.67; // normalize to 60fps
+
+    // 屏幕震动
     if (shakeAmount > 0) {
-        ctx.translate(rand(-shakeAmount, shakeAmount), rand(-shakeAmount, shakeAmount));
-        shakeAmount *= 0.9;
-        if (shakeAmount < 0.5) shakeAmount = 0;
-    }
-
-    // 背景
-    ctx.fillStyle = '#0a0014';
-    ctx.fillRect(-10, -10, W + 20, H + 20);
-
-    // 星星
-    const now = Date.now() / 1000;
-    for (const s of bgStars) {
-        const a = s.alpha + Math.sin(now * s.twinkleSpeed * 10 + s.twinklePhase) * 0.3;
-        ctx.globalAlpha = Math.max(0, Math.min(1, a));
-        ctx.fillStyle = '#fff';
-        ctx.beginPath();
-        ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
-        ctx.fill();
-    }
-    ctx.globalAlpha = 1;
-
-    // 背景光效
-    const grad1 = ctx.createRadialGradient(W * 0.2, H * 0.3, 0, W * 0.2, H * 0.3, 200);
-    grad1.addColorStop(0, 'rgba(255, 107, 157, 0.04)');
-    grad1.addColorStop(1, 'transparent');
-    ctx.fillStyle = grad1;
-    ctx.fillRect(0, 0, W, H);
-
-    const grad2 = ctx.createRadialGradient(W * 0.8, H * 0.7, 0, W * 0.8, H * 0.7, 180);
-    grad2.addColorStop(0, 'rgba(138, 79, 255, 0.03)');
-    grad2.addColorStop(1, 'transparent');
-    ctx.fillStyle = grad2;
-    ctx.fillRect(0, 0, W, H);
-
-    // 篮子移动
-    if (touching) {
-        const dx = basket.targetX - basket.x;
-        basket.x += dx * 0.25;
+        shakeX = rand(-shakeAmount, shakeAmount);
+        shakeY = rand(-shakeAmount, shakeAmount);
+        shakeAmount *= 0.92;
+        if (shakeAmount < 0.3) { shakeAmount = 0; shakeX = 0; shakeY = 0; }
+        gameLayer.style.transform = `translate(${shakeX}px, ${shakeY}px)`;
     } else {
-        // 缓慢回中
-        basket.x += (W / 2 - basket.x) * 0.005;
+        gameLayer.style.transform = '';
     }
-    basket.x = Math.max(basket.w / 2, Math.min(W - basket.w / 2, basket.x));
+
+    // 更新篮子 DOM
+    updateBasketDOM();
 
     // 生成掉落物
-    spawnTimer++;
-    const spawnInterval = Math.max(20, 60 - level * 4);
+    spawnTimer += dtFactor;
+    const spawnInterval = Math.max(25, 65 - level * 4);
     if (spawnTimer >= spawnInterval) {
         spawnItem();
         spawnTimer = 0;
@@ -477,54 +588,57 @@ function gameLoop() {
     // 更新掉落物
     for (let i = items.length - 1; i >= 0; i--) {
         const item = items[i];
-        item.y += item.speed;
-        item.wobble += item.wobbleSpeed;
+        if (!item.alive) continue;
+
+        item.y += item.speed * dtFactor;
+        item.wobble += item.wobbleSpeed * dtFactor;
         item.x += Math.sin(item.wobble) * item.wobbleAmp;
-        item.rotation += item.rotSpeed;
+
+        // 更新 DOM 位置
+        item.el.style.transform = `translate(${item.x - item.size / 2}px, ${item.y - item.size / 2}px)`;
 
         // 超出屏幕
         if (item.y > H + 40) {
             if (item.type !== 'bomb') {
                 totalMissed++;
                 combo = 0;
+                updateHUD();
             }
+            item.el.remove();
             items.splice(i, 1);
             continue;
         }
 
         // 碰撞检测
         if (checkCollision(item)) {
+            item.alive = false;
+            item.el.remove();
+            items.splice(i, 1);
+
             if (item.type === 'bomb') {
-                // 炸弹
                 lives--;
                 combo = 0;
-                shakeAmount = 12;
+                shakeAmount = 15;
                 totalBombs++;
                 spawnParticles(item.x, item.y, '💥', 6);
                 showCombo('💥');
-            } else if (item.type === 'star') {
-                // 星星 - 高分
-                const comboMult = Math.min(1 + combo * 0.1, 3);
-                score += Math.round(item.points * comboMult);
-                combo++;
-                totalCaught++;
-                spawnParticles(item.x, item.y, '⭐', 8);
-                showCombo('⭐ +' + Math.round(item.points * comboMult));
+                showScorePop(item.x, item.y - 20, '-1 ❤️', '#ff4444');
             } else {
-                // 普通爱心
                 const comboMult = Math.min(1 + combo * 0.1, 3);
-                score += Math.round(item.points * comboMult);
+                const pts = Math.round(item.points * comboMult);
+                score += pts;
                 combo++;
                 if (combo > maxCombo) maxCombo = combo;
                 totalCaught++;
+
                 spawnParticles(item.x, item.y, item.emoji, 4);
+                showScorePop(item.x, item.y - 20, '+' + pts, item.type === 'star' ? '#ffd166' : '#ff6b9d');
 
                 if (combo === 5) showCombo('🔥 连击x5!');
                 else if (combo === 10) showCombo('🔥🔥 连击x10!');
                 else if (combo === 20) showCombo('💥💥💥 连击x20!');
                 else if (combo >= 30 && combo % 10 === 0) showCombo('🌟 传奇连击x' + combo + '!');
             }
-            items.splice(i, 1);
             updateHUD();
 
             if (lives <= 0) {
@@ -535,116 +649,43 @@ function gameLoop() {
     }
 
     // 等级提升
-    levelTimer++;
-    if (levelTimer >= 600) { // ~10秒
+    levelTimer += dtFactor;
+    if (levelTimer >= 600) {
         level++;
         difficulty = 1 + (level - 1) * 0.15;
         levelTimer = 0;
         showCombo('⬆️ 等级 ' + level);
         updateHUD();
     }
-
-    // 绘制掉落物
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    for (const item of items) {
-        ctx.save();
-        ctx.translate(item.x, item.y);
-        ctx.rotate(item.rotation);
-        ctx.font = item.size + 'px serif';
-        ctx.fillText(item.emoji, 0, 0);
-
-        // 星星发光
-        if (item.type === 'star') {
-            ctx.globalAlpha = 0.3 + Math.sin(now * 5) * 0.2;
-            ctx.shadowColor = '#ffd166';
-            ctx.shadowBlur = 15;
-            ctx.fillText('⭐', 0, 0);
-            ctx.shadowBlur = 0;
-            ctx.globalAlpha = 1;
-        }
-        ctx.restore();
-    }
-
-    // 绘制篮子
-    ctx.save();
-    ctx.translate(basket.x, basket.y);
-
-    // 篮子阴影
-    ctx.shadowColor = 'rgba(255, 107, 157, 0.4)';
-    ctx.shadowBlur = 15;
-
-    // 篮子主体
-    const bw = basket.w, bh = basket.h;
-    ctx.beginPath();
-    ctx.moveTo(-bw / 2, -bh / 3);
-    ctx.lineTo(-bw / 2 - 5, bh / 2);
-    ctx.lineTo(bw / 2 + 5, bh / 2);
-    ctx.lineTo(bw / 2, -bh / 3);
-    ctx.closePath();
-    const basketGrad = ctx.createLinearGradient(0, -bh / 3, 0, bh / 2);
-    basketGrad.addColorStop(0, '#ff6b9d');
-    basketGrad.addColorStop(1, '#ff3d7f');
-    ctx.fillStyle = basketGrad;
-    ctx.fill();
-
-    // 篮子边缘
-    ctx.beginPath();
-    ctx.ellipse(0, -bh / 3, bw / 2 + 3, 8, 0, 0, Math.PI * 2);
-    ctx.fillStyle = '#ffa8c5';
-    ctx.fill();
-
-    // 篮子纹理线
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
-    ctx.lineWidth = 1;
-    for (let i = -2; i <= 2; i++) {
-        ctx.beginPath();
-        ctx.moveTo(i * (bw / 6), -bh / 3 + 5);
-        ctx.lineTo(i * (bw / 6) - 2, bh / 2 - 3);
-        ctx.stroke();
-    }
-
-    ctx.shadowBlur = 0;
-    ctx.restore();
-
-    // combo 指示环
-    if (combo >= 5) {
-        ctx.save();
-        ctx.globalAlpha = 0.15 + Math.sin(now * 4) * 0.1;
-        const radius = basket.w * 0.8 + combo;
-        ctx.beginPath();
-        ctx.arc(basket.x, basket.y, radius, 0, Math.PI * 2);
-        ctx.strokeStyle = combo >= 20 ? '#ffd166' : '#ff6b9d';
-        ctx.lineWidth = 2;
-        ctx.stroke();
-        ctx.globalAlpha = 1;
-        ctx.restore();
-    }
-
-    ctx.restore(); // shakeAmount restore
 }
 
 // ===== 开始游戏 =====
 function startGame() {
     document.getElementById('startScreen').classList.add('hide');
-    canvas.classList.add('show');
+    gameLayer.classList.add('show');
     document.getElementById('hud').classList.add('show');
     document.getElementById('pauseBtn').classList.add('show');
 
     score = 0; combo = 0; maxCombo = 0; lives = 3;
     level = 1; totalCaught = 0; totalMissed = 0; totalBombs = 0;
-    spawnTimer = 0; levelTimer = 0; difficulty = 1; shakeAmount = 0;
-    items = []; particles = [];
+    spawnTimer = 0; levelTimer = 0; difficulty = 1;
+    shakeAmount = 0; shakeX = 0; shakeY = 0; lastTime = 0;
+
+    // 清除旧的掉落物 DOM
+    document.querySelectorAll('.fall-item').forEach(el => el.remove());
+    items = [];
 
     resize();
-    initStars();
-    basket.x = W / 2;
-    basket.targetX = W / 2;
+    drawBg();
 
+    basket.x = W / 2;
+    basket.y = H - 100;
+    updateBasketDOM();
     updateHUD();
+
     gameRunning = true;
     paused = false;
-    gameLoop();
+    animId = requestAnimationFrame(gameLoop);
 }
 
 // ===== 暂停 =====
@@ -653,7 +694,10 @@ function togglePause() {
     paused = !paused;
     document.getElementById('pauseOverlay').classList.toggle('show', paused);
     document.getElementById('pauseBtn').textContent = paused ? '▶' : '⏸';
-    if (!paused) gameLoop();
+    if (!paused) {
+        lastTime = 0;
+        animId = requestAnimationFrame(gameLoop);
+    }
 }
 
 // ===== 结束 =====
@@ -661,11 +705,10 @@ function endGame() {
     gameRunning = false;
     if (animId) cancelAnimationFrame(animId);
 
-    canvas.classList.remove('show');
+    gameLayer.classList.remove('show');
     document.getElementById('hud').classList.remove('show');
     document.getElementById('pauseBtn').classList.remove('show');
 
-    const endScreen = document.getElementById('endScreen');
     document.getElementById('finalScore').textContent = score;
 
     let title = '游戏结束';
@@ -683,7 +726,7 @@ function endGame() {
         `达到等级 <span>${level}</span><br>` +
         `踩中炸弹 <span>${totalBombs}</span> 次`;
 
-    endScreen.classList.add('show');
+    document.getElementById('endScreen').classList.add('show');
 }
 
 // ===== 重新开始 =====
@@ -697,7 +740,9 @@ function quitGame() {
     gameRunning = false;
     paused = false;
     if (animId) cancelAnimationFrame(animId);
-    canvas.classList.remove('show');
+    document.querySelectorAll('.fall-item').forEach(el => el.remove());
+    items = [];
+    gameLayer.classList.remove('show');
     document.getElementById('hud').classList.remove('show');
     document.getElementById('pauseBtn').classList.remove('show');
     document.getElementById('pauseOverlay').classList.remove('show');
@@ -708,13 +753,11 @@ function quitGame() {
 // ===== 键盘支持 =====
 document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') togglePause();
-    if (e.key === 'ArrowLeft') { touching = true; basket.targetX = basket.x - 40; }
-    if (e.key === 'ArrowRight') { touching = true; basket.targetX = basket.x + 40; }
+    if (e.key === 'ArrowLeft') { basket.x -= 30; }
+    if (e.key === 'ArrowRight') { basket.x += 30; }
+    if (e.key === 'ArrowUp') { basket.y -= 20; }
+    if (e.key === 'ArrowDown') { basket.y += 20; }
 });
-document.addEventListener('keyup', () => { touching = false; });
-
-// 防止页面滚动
-document.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
 </script>
 
 </body>
