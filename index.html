@@ -317,6 +317,7 @@
             cursor: pointer;
             transition: all 0.4s;
             border: none;
+            white-space: nowrap;
         }
         .btn-yes {
             background: linear-gradient(135deg, #ff6b9d, #ff3d7f);
@@ -331,7 +332,7 @@
             background: rgba(255, 255, 255, 0.08);
             color: #aaa;
             border: 1px solid rgba(255, 255, 255, 0.15);
-            position: absolute;
+            position: relative;
         }
 
         /* ===== 成功页面 ===== */
@@ -497,11 +498,21 @@
         /* ===== 响应式 ===== */
         @media (max-width: 600px) {
             .cover h1 { font-size: 2.5rem; }
+            .cover .subtitle { font-size: 1.1rem; letter-spacing: 2px; }
             .letter-header h2 { font-size: 2rem; }
             .confession h2 { font-size: 2.2rem; }
-            .message-block { padding: 20px; }
-            .message-block p { font-size: 1.05rem; }
-            .btn-group { flex-direction: column; align-items: center; }
+            .confession .name { font-size: 2rem; }
+            .message-block { padding: 20px; margin-bottom: 28px; }
+            .message-block p { font-size: 1.05rem; line-height: 1.9; }
+            .poem p { font-size: 1.3rem; }
+            .btn-group { flex-direction: column; align-items: center; gap: 20px; }
+            .btn-yes, .btn-no { padding: 14px 44px; font-size: 1.1rem; }
+            .response-area p { font-size: 1.15rem; }
+            .timeline-content { padding: 14px 18px; }
+            .timeline-content .desc { font-size: 0.95rem; }
+            .heart-icon { font-size: 3.5rem; }
+            .progress-dots { right: 10px; }
+            .container { padding: 30px 16px; }
         }
     </style>
 </head>
@@ -733,12 +744,19 @@
     function moveNoBtn() {
         const btn = document.getElementById('btnNo');
         noCount++;
-        const maxX = window.innerWidth - 150;
+        btn.style.position = 'fixed';
+        btn.style.zIndex = '999';
+        const maxX = window.innerWidth - 140;
         const maxY = window.innerHeight - 60;
-        btn.style.left = (50 + Math.random() * (maxX - 100)) + 'px';
-        btn.style.top = (window.scrollY + 100 + Math.random() * (maxY - 200)) + 'px';
+        btn.style.left = (20 + Math.random() * Math.max(0, maxX - 20)) + 'px';
+        btn.style.top = (80 + Math.random() * Math.max(0, maxY - 140)) + 'px';
         btn.textContent = noTexts[Math.min(noCount, noTexts.length - 1)];
     }
+    // 手机端触摸也能触发逃跑
+    document.getElementById('btnNo').addEventListener('touchstart', function(e) {
+        e.preventDefault();
+        moveNoBtn();
+    });
 
     // ===== 说愿意 =====
     function sayYes() {
