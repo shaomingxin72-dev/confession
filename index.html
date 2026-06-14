@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>致 常昊旻</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=ZCOOL+XiaoWei&display=swap');
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #0d0015, #1a0028, #0d0015);
+            font-family: 'ZCOOL XiaoWei', serif;
+            color: #fff;
+            overflow-x: hidden;
+        }
+
+        /* ===== 星空背景 ===== */
+        .stars {
+            position: fixed; top: 0; left: 0;
+            width: 100%; height: 100%;
+            pointer-events: none; z-index: 0;
+        }
+        .star {
+            position: absolute;
+            width: 2px; height: 2px;
+            background: #fff;
+            border-radius: 50%;
+            animation: twinkle var(--d) ease-in-out infinite alternate;
+        }
+        @keyframes twinkle {
+            0% { opacity: 0.2; transform: scale(1); }
+            100% { opacity: 1; transform: scale(1.5); }
+        }
+
+        /* ===== 飘落花瓣 ===== */
+        .petals-container {
+            position: fixed; top: 0; left: 0;
+            width: 100%; height: 100%;
+            pointer-events: none; z-index: 1;
+        }
+        .petal {
+            position: absolute;
+            top: -40px;
+            font-size: 18px;
+            animation: fall linear infinite;
+            opacity: 0.7;
+        }
+        @keyframes fall {
+            0% { transform: translateY(0) rotate(0deg) translateX(0); opacity: 0.8; }
+            50% { opacity: 1; }
+            100% { transform: translateY(105vh) rotate(720deg) translateX(80px); opacity: 0; }
+        }
+
+        /* ===== 主容器 ===== */
+        .container {
+            position: relative;
+            z-index: 2;
+            max-width: 720px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        /* ===== 开场封面 ===== */
+        .cover {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            animation: fadeIn 2s ease;
+        }
+        .cover h1 {
+            font-family: 'Ma Shan Zheng', cursive;
+            font-size: 3.5rem;
+            background: linear-gradient(135deg, #ff6b9d, #ffa8c5, #ff6b9d);
+            background-size: 200% 200%;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: shimmer 3s ease infinite;
+            margin-bottom: 20px;
+        }
+        @keyframes shimmer {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
+        .cover .subtitle {
+            font-size: 1.3rem;
+            color: #c9a0dc;
+            margin-bottom: 50px;
+            letter-spacing: 4px;
+        }
+        .enter-btn {
+            background: none;
+            border: 2px solid #ff6b9d;
+            color: #ff6b9d;
+            padding: 14px 48px;
+            font-size: 1.1rem;
+            font-family: 'ZCOOL XiaoWei', serif;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.4s;
+            position: relative;
+            overflow: hidden;
+        }
+        .enter-btn:hover {
+            background: #ff6b9d;
+            color: #fff;
+            box-shadow: 0 0 30px rgba(255, 107, 157, 0.5);
+            transform: scale(1.05);
+        }
+        .heart-icon {
+            font-size: 5rem;
+            animation: heartbeat 1.2s ease-in-out infinite;
+            margin-bottom: 30px;
+        }
+        @keyframes heartbeat {
+            0%, 100% { transform: scale(1); }
+            15% { transform: scale(1.15); }
+            30% { transform: scale(1); }
+            45% { transform: scale(1.1); }
+        }
+
+        /* ===== 信件内容 ===== */
+        .letter {
+            display: none;
+            min-height: 100vh;
+            padding-top: 60px;
+        }
+        .letter.show { display: block; animation: fadeIn 1.5s ease; }
+        .cover.hide { display: none; }
+
+        .letter-header {
+            text-align: center;
+            margin-bottom: 50px;
+        }
+        .letter-header h2 {
+            font-family: 'Ma Shan Zheng', cursive;
+            font-size: 2.5rem;
+            color: #ff6b9d;
+            margin-bottom: 10px;
+        }
+        .letter-header .date {
+            color: #8a7099;
+            font-size: 0.95rem;
+        }
+
+        /* ===== 段落逐段展示 ===== */
+        .message-block {
+            opacity: 0;
+            transform: translateY(40px);
+            transition: all 1s ease;
+            margin-bottom: 40px;
+            padding: 30px;
+            background: rgba(255, 255, 255, 0.03);
+            border-left: 3px solid rgba(255, 107, 157, 0.3);
+            border-radius: 0 12px 12px 0;
+        }
+        .message-block.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .message-block p {
+            font-size: 1.15rem;
+            line-height: 2;
+            color: #e8d5f5;
+            text-indent: 2em;
+        }
+        .message-block .highlight {
+            color: #ff6b9d;
+            font-weight: bold;
+        }
+        .message-block .accent {
+            color: #ffd166;
+        }
+
+        /* ===== 时光轴 ===== */
+        .timeline {
+            margin: 60px 0;
+            padding: 0;
+        }
+        .timeline h3 {
+            text-align: center;
+            font-family: 'Ma Shan Zheng', cursive;
+            font-size: 2rem;
+            color: #ffa8c5;
+            margin-bottom: 40px;
+        }
+        .timeline-item {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 30px;
+            opacity: 0;
+            transform: translateX(-30px);
+            transition: all 0.8s ease;
+        }
+        .timeline-item.visible {
+            opacity: 1;
+            transform: translateX(0);
+        }
+        .timeline-dot {
+            width: 14px; height: 14px;
+            min-width: 14px;
+            background: #ff6b9d;
+            border-radius: 50%;
+            margin-top: 6px;
+            margin-right: 20px;
+            box-shadow: 0 0 12px rgba(255, 107, 157, 0.6);
+            position: relative;
+        }
+        .timeline-dot::after {
+            content: '';
+            position: absolute;
+            left: 5px; top: 14px;
+            width: 2px;
+            height: calc(100% + 16px);
+            background: rgba(255, 107, 157, 0.2);
+        }
+        .timeline-item:last-child .timeline-dot::after { display: none; }
+        .timeline-content {
+            background: rgba(255, 255, 255, 0.04);
+            padding: 18px 24px;
+            border-radius: 12px;
+            flex: 1;
+        }
+        .timeline-content .time {
+            color: #ff6b9d;
+            font-size: 0.9rem;
+            margin-bottom: 6px;
+        }
+        .timeline-content .desc {
+            color: #d4bce6;
+            font-size: 1.05rem;
+            line-height: 1.8;
+        }
+
+        /* ===== 诗句引用 ===== */
+        .poem {
+            text-align: center;
+            margin: 50px 0;
+            padding: 40px 20px;
+            position: relative;
+        }
+        .poem::before, .poem::after {
+            content: '';
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80px;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, #ff6b9d, transparent);
+        }
+        .poem::before { top: 0; }
+        .poem::after { bottom: 0; }
+        .poem p {
+            font-family: 'Ma Shan Zheng', cursive;
+            font-size: 1.6rem;
+            color: #ffa8c5;
+            line-height: 2.2;
+        }
+
+        /* ===== 最终表白 ===== */
+        .confession {
+            text-align: center;
+            margin: 80px 0 40px;
+            opacity: 0;
+            transform: scale(0.8);
+            transition: all 1.2s ease;
+        }
+        .confession.visible {
+            opacity: 1;
+            transform: scale(1);
+        }
+        .confession h2 {
+            font-family: 'Ma Shan Zheng', cursive;
+            font-size: 3rem;
+            background: linear-gradient(135deg, #ff6b9d, #ffd166, #ff6b9d);
+            background-size: 200% 200%;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: shimmer 3s ease infinite;
+            margin-bottom: 20px;
+        }
+        .confession .name {
+            font-family: 'Ma Shan Zheng', cursive;
+            font-size: 2.5rem;
+            color: #ffd166;
+        }
+
+        /* ===== 回应按钮 ===== */
+        .response-area {
+            text-align: center;
+            margin: 50px 0 80px;
+            opacity: 0;
+            transition: opacity 1s ease 0.5s;
+        }
+        .response-area.visible { opacity: 1; }
+        .response-area p {
+            font-size: 1.3rem;
+            color: #c9a0dc;
+            margin-bottom: 30px;
+        }
+        .btn-group {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            flex-wrap: wrap;
+        }
+        .btn-yes, .btn-no {
+            padding: 16px 50px;
+            font-size: 1.2rem;
+            font-family: 'ZCOOL XiaoWei', serif;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.4s;
+            border: none;
+        }
+        .btn-yes {
+            background: linear-gradient(135deg, #ff6b9d, #ff3d7f);
+            color: #fff;
+            box-shadow: 0 4px 20px rgba(255, 107, 157, 0.4);
+        }
+        .btn-yes:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 30px rgba(255, 107, 157, 0.7);
+        }
+        .btn-no {
+            background: rgba(255, 255, 255, 0.08);
+            color: #aaa;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            position: absolute;
+        }
+
+        /* ===== 成功页面 ===== */
+        .success {
+            display: none;
+            min-height: 100vh;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            text-align: center;
+        }
+        .success.show {
+            display: flex;
+            animation: fadeIn 1s ease;
+        }
+        .success h1 {
+            font-family: 'Ma Shan Zheng', cursive;
+            font-size: 3.5rem;
+            color: #ff6b9d;
+            margin-bottom: 20px;
+        }
+        .success p {
+            font-size: 1.3rem;
+            color: #d4bce6;
+            line-height: 2;
+            max-width: 500px;
+        }
+        .firework {
+            position: fixed;
+            pointer-events: none;
+            z-index: 100;
+        }
+
+        /* ===== 进度指示器 ===== */
+        .progress-dots {
+            position: fixed;
+            right: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 10;
+            display: none;
+        }
+        .progress-dots.show { display: block; }
+        .dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background: rgba(255, 107, 157, 0.3);
+            margin: 10px 0;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+        .dot.active {
+            background: #ff6b9d;
+            box-shadow: 0 0 8px rgba(255, 107, 157, 0.6);
+            transform: scale(1.3);
+        }
+
+        /* ===== 背景光效 ===== */
+        .glow-orb {
+            position: fixed;
+            border-radius: 50%;
+            filter: blur(80px);
+            pointer-events: none;
+            z-index: 0;
+        }
+        .glow-orb.pink {
+            width: 300px; height: 300px;
+            background: rgba(255, 107, 157, 0.08);
+            top: 20%; left: -5%;
+            animation: float1 12s ease-in-out infinite;
+        }
+        .glow-orb.purple {
+            width: 250px; height: 250px;
+            background: rgba(138, 79, 255, 0.06);
+            bottom: 10%; right: -5%;
+            animation: float2 15s ease-in-out infinite;
+        }
+        @keyframes float1 {
+            0%, 100% { transform: translate(0, 0); }
+            50% { transform: translate(50px, 30px); }
+        }
+        @keyframes float2 {
+            0%, 100% { transform: translate(0, 0); }
+            50% { transform: translate(-40px, -20px); }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ===== 烟花 ===== */
+        .firework-particle {
+            position: fixed;
+            width: 4px; height: 4px;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 100;
+            animation: fireworkExplode 1.5s ease-out forwards;
+        }
+        @keyframes fireworkExplode {
+            0% { opacity: 1; transform: translate(0, 0) scale(1); }
+            100% { opacity: 0; transform: translate(var(--tx), var(--ty)) scale(0); }
+        }
+
+        /* ===== 点击爱心特效 ===== */
+        .click-heart {
+            position: fixed;
+            pointer-events: none;
+            z-index: 999;
+            font-size: 20px;
+            animation: heartFloat 1s ease-out forwards;
+        }
+        @keyframes heartFloat {
+            0% { opacity: 1; transform: translateY(0) scale(1); }
+            100% { opacity: 0; transform: translateY(-80px) scale(0.5); }
+        }
+
+        /* ===== 音乐控制 ===== */
+        .music-btn {
+            position: fixed;
+            top: 20px; right: 20px;
+            z-index: 50;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 107, 157, 0.3);
+            color: #ff6b9d;
+            width: 44px; height: 44px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 1.2rem;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .music-btn:hover {
+            background: rgba(255, 107, 157, 0.15);
+            transform: scale(1.1);
+        }
+        .music-btn.playing {
+            animation: pulse 2s ease infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(255, 107, 157, 0.4); }
+            50% { box-shadow: 0 0 0 10px rgba(255, 107, 157, 0); }
+        }
+
+        /* ===== 打字机光标 ===== */
+        .typing-cursor {
+            display: inline-block;
+            width: 2px;
+            height: 1.2em;
+            background: #ff6b9d;
+            margin-left: 2px;
+            animation: blink 0.8s step-end infinite;
+            vertical-align: text-bottom;
+        }
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+
+        /* ===== 响应式 ===== */
+        @media (max-width: 600px) {
+            .cover h1 { font-size: 2.5rem; }
+            .letter-header h2 { font-size: 2rem; }
+            .confession h2 { font-size: 2.2rem; }
+            .message-block { padding: 20px; }
+            .message-block p { font-size: 1.05rem; }
+            .btn-group { flex-direction: column; align-items: center; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- 背景光效 -->
+<div class="glow-orb pink"></div>
+<div class="glow-orb purple"></div>
+
+<!-- 星空 -->
+<div class="stars" id="stars"></div>
+
+<!-- 花瓣 -->
+<div class="petals-container" id="petals"></div>
+
+<!-- 音乐按钮 -->
+<button class="music-btn" id="musicBtn" title="播放/暂停音乐">♫</button>
+
+<!-- ===== 封面 ===== -->
+<div class="cover" id="cover">
+    <div class="heart-icon">💗</div>
+    <h1>常昊旻</h1>
+    <p class="subtitle">有些话，想对你说</p>
+    <button class="enter-btn" onclick="enterLetter()">点击打开</button>
+</div>
+
+<!-- ===== 信件 ===== -->
+<div class="letter" id="letter">
+
+    <div class="letter-header">
+        <h2>写给你的一封信</h2>
+        <p class="date">From now to forever</p>
+    </div>
+
+    <div class="message-block" data-reveal>
+        <p>常昊旻，你好呀。</p>
+        <p>不知道你看到这个页面的时候会是什么表情，但我希望你能微笑。</p>
+        <p>有些话藏在心里很久了，今天终于鼓起勇气，用这种特别的方式告诉你。</p>
+    </div>
+
+    <div class="message-block" data-reveal>
+        <p>遇见你，是我所有故事里<span class="highlight">最美的意外</span>。</p>
+        <p>不知道从什么时候开始，你的名字成了我最常想起的三个字。每次看到你的消息，嘴角都会不自觉地上扬；每次和你说话，时间都变得特别快。</p>
+    </div>
+
+    <div class="message-block" data-reveal>
+        <p>我喜欢你笑起来的样子，像<span class="accent">阳光穿透云层</span>，整个世界都亮了。</p>
+        <p>我喜欢你认真的样子，专注的眼神里藏着星辰大海。</p>
+        <p>我喜欢你的一切，那些你自己可能都没注意到的小细节，在我眼里都闪闪发光。</p>
+    </div>
+
+    <div class="message-block" data-reveal>
+        <p>有人说，喜欢一个人是藏不住的，即使捂住嘴巴，也会从眼睛里跑出来。</p>
+        <p>所以我不想再藏了。</p>
+        <p class="highlight" style="text-indent:0; text-align:center; font-size:1.25rem; margin-top:16px;">常昊旻，我喜欢你。</p>
+    </div>
+
+    <!-- 时光轴 -->
+    <div class="timeline" id="timeline">
+        <h3>关于你的小记忆</h3>
+        <div class="timeline-item" data-reveal>
+            <div class="timeline-dot"></div>
+            <div class="timeline-content">
+                <div class="time">某一刻</div>
+                <div class="desc">第一次注意到你，觉得你和别人不一样</div>
+            </div>
+        </div>
+        <div class="timeline-item" data-reveal>
+            <div class="timeline-dot"></div>
+            <div class="timeline-content">
+                <div class="time">某一刻</div>
+                <div class="desc">开始不自觉地寻找你的身影</div>
+            </div>
+        </div>
+        <div class="timeline-item" data-reveal>
+            <div class="timeline-dot"></div>
+            <div class="timeline-content">
+                <div class="time">某一刻</div>
+                <div class="desc">发现和你聊天是最快乐的事</div>
+            </div>
+        </div>
+        <div class="timeline-item" data-reveal>
+            <div class="timeline-dot"></div>
+            <div class="timeline-content">
+                <div class="time">某一刻</div>
+                <div class="desc">终于确认——我喜欢你</div>
+            </div>
+        </div>
+        <div class="timeline-item" data-reveal>
+            <div class="timeline-dot"></div>
+            <div class="timeline-content">
+                <div class="time">此刻</div>
+                <div class="desc">鼓起勇气，把心意告诉你</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 诗句 -->
+    <div class="poem" data-reveal>
+        <p>玲珑骰子安红豆<br>入骨相思知不知</p>
+    </div>
+
+    <div class="message-block" data-reveal>
+        <p>我不知道未来会怎样，但我知道：</p>
+        <p>如果能和你一起，<span class="accent">每一天都会是好天气</span>。</p>
+        <p>我想陪你走过春夏秋冬，想成为你最温暖的依靠。</p>
+    </div>
+
+    <!-- 最终表白 -->
+    <div class="confession" data-reveal>
+        <h2>我喜欢你</h2>
+        <p class="name">常昊旻</p>
+    </div>
+
+    <!-- 回应 -->
+    <div class="response-area" data-reveal>
+        <p>你愿意给我一个机会吗？</p>
+        <div class="btn-group">
+            <button class="btn-yes" onclick="sayYes()">我愿意 💕</button>
+            <button class="btn-no" id="btnNo" onmouseover="moveNoBtn()">再想想</button>
+        </div>
+    </div>
+</div>
+
+<!-- ===== 成功页面 ===== -->
+<div class="success" id="success">
+    <div class="heart-icon" style="font-size:6rem;">💕</div>
+    <h1>太好了！</h1>
+    <p>谢谢你，常昊旻。<br>从今天起，我的世界因你而完整。<br>我会用行动证明，选择我，是你做过最对的决定。</p>
+</div>
+
+<!-- ===== 进度点 ===== -->
+<div class="progress-dots" id="progressDots">
+    <div class="dot active" data-section="0"></div>
+    <div class="dot" data-section="1"></div>
+    <div class="dot" data-section="2"></div>
+    <div class="dot" data-section="3"></div>
+    <div class="dot" data-section="4"></div>
+</div>
+
+<script>
+    // ===== 星空生成 =====
+    (function createStars() {
+        const container = document.getElementById('stars');
+        for (let i = 0; i < 150; i++) {
+            const star = document.createElement('div');
+            star.className = 'star';
+            star.style.left = Math.random() * 100 + '%';
+            star.style.top = Math.random() * 100 + '%';
+            star.style.setProperty('--d', (1.5 + Math.random() * 3) + 's');
+            star.style.width = star.style.height = (1 + Math.random() * 2) + 'px';
+            container.appendChild(star);
+        }
+    })();
+
+    // ===== 花瓣飘落 =====
+    (function createPetals() {
+        const container = document.getElementById('petals');
+        const symbols = ['🌸', '💕', '✨', '💗', '🌷', '⭐'];
+        function spawn() {
+            const p = document.createElement('div');
+            p.className = 'petal';
+            p.textContent = symbols[Math.floor(Math.random() * symbols.length)];
+            p.style.left = Math.random() * 100 + '%';
+            p.style.fontSize = (14 + Math.random() * 14) + 'px';
+            const dur = 6 + Math.random() * 8;
+            p.style.animationDuration = dur + 's';
+            p.style.animationDelay = Math.random() * 2 + 's';
+            container.appendChild(p);
+            setTimeout(() => p.remove(), (dur + 2) * 1000);
+        }
+        for (let i = 0; i < 15; i++) setTimeout(spawn, i * 300);
+        setInterval(spawn, 800);
+    })();
+
+    // ===== 点击爱心特效 =====
+    document.addEventListener('click', function(e) {
+        const hearts = ['💕', '💗', '❤️', '💖', '✨'];
+        for (let i = 0; i < 3; i++) {
+            const h = document.createElement('div');
+            h.className = 'click-heart';
+            h.textContent = hearts[Math.floor(Math.random() * hearts.length)];
+            h.style.left = (e.clientX + (Math.random() - 0.5) * 30) + 'px';
+            h.style.top = e.clientY + 'px';
+            document.body.appendChild(h);
+            setTimeout(() => h.remove(), 1000);
+        }
+    });
+
+    // ===== 进入信件 =====
+    function enterLetter() {
+        document.getElementById('cover').classList.add('hide');
+        const letter = document.getElementById('letter');
+        letter.classList.add('show');
+        document.getElementById('progressDots').classList.add('show');
+        initScrollReveal();
+    }
+
+    // ===== 滚动渐显 =====
+    function initScrollReveal() {
+        const elements = document.querySelectorAll('[data-reveal]');
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('visible');
+                }
+            });
+        }, { threshold: 0.15 });
+        elements.forEach(el => observer.observe(el));
+    }
+
+    // ===== 进度指示器 =====
+    const sections = [0, 1, 2, 3, 4];
+    window.addEventListener('scroll', () => {
+        const letter = document.getElementById('letter');
+        if (!letter.classList.contains('show')) return;
+        const scrollTop = window.scrollY;
+        const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+        const progress = scrollTop / docHeight;
+        const activeIdx = Math.min(4, Math.floor(progress * 5));
+        document.querySelectorAll('.dot').forEach((d, i) => {
+            d.classList.toggle('active', i === activeIdx);
+        });
+    });
+
+    // ===== "再想想"按钮逃跑 =====
+    let noCount = 0;
+    const noTexts = ['再想想', '别跑呀', '点那个', '我不好', '你确定？', '真的吗？', '🥺'];
+    function moveNoBtn() {
+        const btn = document.getElementById('btnNo');
+        noCount++;
+        const maxX = window.innerWidth - 150;
+        const maxY = window.innerHeight - 60;
+        btn.style.left = (50 + Math.random() * (maxX - 100)) + 'px';
+        btn.style.top = (window.scrollY + 100 + Math.random() * (maxY - 200)) + 'px';
+        btn.textContent = noTexts[Math.min(noCount, noTexts.length - 1)];
+    }
+
+    // ===== 说愿意 =====
+    function sayYes() {
+        document.getElementById('letter').style.display = 'none';
+        document.getElementById('progressDots').classList.remove('show');
+        const success = document.getElementById('success');
+        success.classList.add('show');
+        launchFireworks();
+    }
+
+    // ===== 烟花效果 =====
+    function launchFireworks() {
+        let count = 0;
+        const interval = setInterval(() => {
+            createFirework(
+                Math.random() * window.innerWidth,
+                Math.random() * window.innerHeight * 0.6
+            );
+            count++;
+            if (count > 20) clearInterval(interval);
+        }, 300);
+    }
+    function createFirework(x, y) {
+        const colors = ['#ff6b9d', '#ffd166', '#a855f7', '#ff3d7f', '#ffa8c5', '#fff'];
+        const particleCount = 30;
+        for (let i = 0; i < particleCount; i++) {
+            const p = document.createElement('div');
+            p.className = 'firework-particle';
+            p.style.left = x + 'px';
+            p.style.top = y + 'px';
+            p.style.background = colors[Math.floor(Math.random() * colors.length)];
+            const angle = (Math.PI * 2 / particleCount) * i;
+            const distance = 60 + Math.random() * 80;
+            p.style.setProperty('--tx', Math.cos(angle) * distance + 'px');
+            p.style.setProperty('--ty', Math.sin(angle) * distance + 'px');
+            document.body.appendChild(p);
+            setTimeout(() => p.remove(), 1500);
+        }
+    }
+
+    // ===== 背景音乐（使用 Web Audio API 生成简单旋律）=====
+    let audioCtx = null;
+    let isPlaying = false;
+    let melodyInterval = null;
+
+    document.getElementById('musicBtn').addEventListener('click', function() {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (isPlaying) {
+            clearInterval(melodyInterval);
+            isPlaying = false;
+            this.classList.remove('playing');
+            this.textContent = '♫';
+        } else {
+            isPlaying = true;
+            this.classList.add('playing');
+            this.textContent = '♫';
+            playMelody();
+        }
+    });
+
+    // 简单的 "Canon in D" 风格旋律片段
+    const melody = [
+        { note: 261.63, dur: 0.5 }, // C4
+        { note: 329.63, dur: 0.5 }, // E4
+        { note: 392.00, dur: 0.5 }, // G4
+        { note: 329.63, dur: 0.5 }, // E4
+        { note: 349.23, dur: 0.5 }, // F4
+        { note: 293.66, dur: 0.5 }, // D4
+        { note: 349.23, dur: 0.5 }, // F4
+        { note: 261.63, dur: 0.5 }, // C4
+        { note: 293.66, dur: 0.75 }, // D4
+        { note: 329.63, dur: 0.75 }, // E4
+        { note: 392.00, dur: 1.0 }, // G4
+        { note: 349.23, dur: 0.5 }, // F4
+        { note: 329.63, dur: 0.5 }, // E4
+        { note: 293.66, dur: 1.0 }, // D4
+    ];
+    let noteIdx = 0;
+
+    function playMelody() {
+        function playNote() {
+            if (!isPlaying || !audioCtx) return;
+            const { note, dur } = melody[noteIdx % melody.length];
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'sine';
+            osc.frequency.value = note;
+            gain.gain.setValueAtTime(0, audioCtx.currentTime);
+            gain.gain.linearRampToValueAtTime(0.12, audioCtx.currentTime + 0.05);
+            gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + dur * 0.9);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + dur);
+            noteIdx++;
+            melodyInterval = setTimeout(playNote, dur * 600);
+        }
+        playNote();
+    }
+
+    // ===== 自动播放尝试 =====
+    document.addEventListener('click', function autoPlay() {
+        if (!audioCtx) {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            isPlaying = true;
+            document.getElementById('musicBtn').classList.add('playing');
+            playMelody();
+        }
+        document.removeEventListener('click', autoPlay);
+    }, { once: true });
+</script>
+
+</body>
+</html>
