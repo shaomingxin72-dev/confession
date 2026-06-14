@@ -354,9 +354,10 @@ function tapHole(index, holeEl, x, y) {
     const mole = holeEl.querySelector('.mole');
     if (!mole) return;
 
+    // 立即标记，防止重复点击
     holeEl.dataset.state = 'hit';
 
-    // 撞击特效
+    // 撞击动画
     mole.classList.remove('up');
     mole.classList.add('hit');
 
@@ -376,7 +377,6 @@ function tapHole(index, holeEl, x, y) {
     fx.style.top = '20%';
 
     if (type === 'bomb') {
-        // 炸弹
         lives--;
         combo = 0;
         totalBomb++;
@@ -385,14 +385,12 @@ function tapHole(index, holeEl, x, y) {
         showCombo('💥');
         shakeScreen();
     } else if (type === 'poison') {
-        // 毒蘑菇
-        score += points;
+        score = Math.max(0, score + points);
         combo = 0;
         totalPoison++;
         fx.textContent = points + ' 🍄';
         fx.style.color = '#8b5cf6';
     } else {
-        // 好东西
         const comboMult = Math.min(1 + combo * 0.1, 3);
         const finalPts = Math.round(points * comboMult);
         score += finalPts;
@@ -410,8 +408,14 @@ function tapHole(index, holeEl, x, y) {
 
     holeEl.appendChild(fx);
     setTimeout(() => fx.remove(), 700);
-    updateHUD();
 
+    // 动画结束后清理：重置洞状态 + 删除 mole 元素
+    setTimeout(() => {
+        mole.remove();
+        holeEl.dataset.state = 'empty';
+    }, 300);
+
+    updateHUD();
     if (lives <= 0) endGame();
 }
 
@@ -459,20 +463,21 @@ function spawnMole() {
 
     // 停留时间后消失
     const stayTime = Math.max(500, 1200 - level * 60);
+    const thisMole = mole; // 闭包引用
     setTimeout(() => {
+        // 只处理还在 'up' 状态的（没被点过的）
         if (hole.dataset.state === 'up') {
             hole.dataset.state = 'empty';
-            mole.classList.remove('up');
-            mole.classList.add('miss');
+            thisMole.classList.remove('up');
+            thisMole.classList.add('miss');
             if (chosen.type !== 'bomb' && chosen.type !== 'poison') {
                 totalMiss++;
                 combo = 0;
                 updateHUD();
             }
-            setTimeout(() => mole.remove(), 300);
-        } else if (hole.dataset.state === 'hit') {
-            setTimeout(() => mole.remove(), 300);
+            setTimeout(() => thisMole.remove(), 300);
         }
+        // 'hit' 状态的已经在 tapHole 里处理了，这里不管
     }, stayTime);
 
     scheduleNext();
